@@ -18,7 +18,6 @@
     <nav class="nav">
       <span class="brand">FF</span>
       <div class="nav-links">
-        <a href="#pipeline">Pipeline</a>
         <a href="#projects">Projects</a>
         <a href="#research">Research</a>
         <a href="#about">About</a>
@@ -82,88 +81,11 @@
     <div class="stat-row fade-up d5">
       <div><strong>6</strong><span>Projects</span></div>
       <div><strong>5</strong><span>Research papers</span></div>
-      <div><strong>4</strong><span>Cloud certs</span></div>
       <div><strong>∞</strong><span>Rows wrangled</span></div>
     </div>
   </header>
 
   <main>
-    <!-- ANIMATED END-TO-END PIPELINE -->
-    <section id="pipeline" class="section">
-      <h2 class="section-title reveal">A modern data platform, end to end</h2>
-      <p class="section-sub reveal">Watch the data flow: operational sources → ingestion/ETL →
-        analytical lakehouse → AI &amp; BI. This is the architecture my projects are built on.</p>
-
-      <div class="pipeline-wrap reveal">
-      <svg viewBox="0 0 1000 380" xmlns="http://www.w3.org/2000/svg" class="pipeline-svg" role="img" aria-label="End-to-end data platform">
-        <defs>
-          <linearGradient id="flowg" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0" stop-color="#38bdf8"/><stop offset="1" stop-color="#22d3a6"/>
-          </linearGradient>
-        </defs>
-
-        <!-- stage headers -->
-        <text x="120" y="30" text-anchor="middle" class="stage-h">Operational Data</text>
-        <text x="370" y="30" text-anchor="middle" class="stage-h">Ingestion / ETL</text>
-        <text x="640" y="30" text-anchor="middle" class="stage-h">Lakehouse &amp; Processing</text>
-        <text x="895" y="30" text-anchor="middle" class="stage-h">AI &amp; BI</text>
-
-        <!-- divider guides -->
-        <line x1="245" y1="45" x2="245" y2="360" stroke="#233048" stroke-dasharray="4 6"/>
-        <line x1="500" y1="45" x2="500" y2="360" stroke="#233048" stroke-dasharray="4 6"/>
-        <line x1="785" y1="45" x2="785" y2="360" stroke="#233048" stroke-dasharray="4 6"/>
-
-        <!-- flow connectors -->
-        <line class="flow" x1="200" y1="120" x2="300" y2="120" stroke="url(#flowg)" stroke-width="3"/>
-        <line class="flow" x1="200" y1="250" x2="300" y2="250" stroke="url(#flowg)" stroke-width="3"/>
-        <line class="flow" x1="440" y1="120" x2="560" y2="130" stroke="url(#flowg)" stroke-width="3"/>
-        <line class="flow" x1="440" y1="250" x2="560" y2="200" stroke="url(#flowg)" stroke-width="3"/>
-        <line class="flow" x1="730" y1="170" x2="830" y2="150" stroke="url(#flowg)" stroke-width="3"/>
-        <line class="flow" x1="730" y1="200" x2="830" y2="240" stroke="url(#flowg)" stroke-width="3"/>
-
-        <!-- operational nodes -->
-        <g class="pulse"><rect x="40" y="95" width="160" height="50" rx="10" fill="#141b2c" stroke="#233048"/></g>
-        <text x="120" y="118" text-anchor="middle" class="n-title">Event Hub / Kafka</text>
-        <text x="120" y="134" text-anchor="middle" class="n-sub">streaming telemetry</text>
-        <rect x="40" y="225" width="160" height="50" rx="10" fill="#141b2c" stroke="#233048"/>
-        <text x="120" y="248" text-anchor="middle" class="n-title">Azure SQL · Cosmos</text>
-        <text x="120" y="264" text-anchor="middle" class="n-sub">operational stores · CDC</text>
-
-        <!-- ingestion nodes -->
-        <rect x="300" y="95" width="140" height="50" rx="10" fill="#141b2c" stroke="#38bdf8"/>
-        <text x="370" y="118" text-anchor="middle" class="n-title">Stream Analytics</text>
-        <text x="370" y="134" text-anchor="middle" class="n-sub">/ Spark Streaming</text>
-        <rect x="300" y="225" width="140" height="50" rx="10" fill="#141b2c" stroke="#38bdf8"/>
-        <text x="370" y="248" text-anchor="middle" class="n-title">Data Factory</text>
-        <text x="370" y="264" text-anchor="middle" class="n-sub">Debezium CDC</text>
-
-        <!-- lakehouse box -->
-        <rect x="555" y="80" width="180" height="200" rx="12" fill="#0e1626" stroke="#22d3a6" stroke-dasharray="5 5"/>
-        <text x="645" y="105" text-anchor="middle" class="n-sub">Iceberg / Delta lakehouse</text>
-        <g class="pulse"><rect x="575" y="120" width="140" height="36" rx="8" fill="#141b2c" stroke="#233048"/></g>
-        <text x="645" y="143" text-anchor="middle" class="n-title">bronze</text>
-        <rect x="575" y="166" width="140" height="36" rx="8" fill="#141b2c" stroke="#38bdf8"/>
-        <text x="645" y="189" text-anchor="middle" class="n-title">silver (MERGE)</text>
-        <rect x="575" y="212" width="140" height="36" rx="8" fill="#141b2c" stroke="#22d3a6"/>
-        <text x="645" y="235" text-anchor="middle" class="n-title">gold (aggregates)</text>
-
-        <!-- AI/BI nodes -->
-        <g class="pulse"><rect x="830" y="125" width="140" height="50" rx="10" fill="#141b2c" stroke="#22d3a6"/></g>
-        <text x="900" y="148" text-anchor="middle" class="n-title">Genie / RAG (AI)</text>
-        <text x="900" y="164" text-anchor="middle" class="n-sub">NL → insight</text>
-        <rect x="830" y="215" width="140" height="50" rx="10" fill="#141b2c" stroke="#233048"/>
-        <text x="900" y="238" text-anchor="middle" class="n-title">Power BI</text>
-        <text x="900" y="254" text-anchor="middle" class="n-sub">dashboards</text>
-
-        <!-- moving data packets -->
-        <circle r="4" fill="#38bdf8"><animateMotion dur="3s" repeatCount="indefinite" path="M200,120 L300,120"/></circle>
-        <circle r="4" fill="#22d3a6"><animateMotion dur="3.4s" repeatCount="indefinite" path="M440,120 L560,130"/></circle>
-        <circle r="4" fill="#38bdf8"><animateMotion dur="3.2s" repeatCount="indefinite" path="M730,170 L830,150"/></circle>
-        <circle r="4" fill="#22d3a6"><animateMotion dur="3.6s" repeatCount="indefinite" path="M200,250 L300,250"/></circle>
-      </svg>
-      </div>
-    </section>
-
     <!-- PROJECTS -->
     <section id="projects" class="section">
       <h2 class="section-title reveal">Projects</h2>
