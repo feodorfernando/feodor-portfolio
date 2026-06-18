@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Real-Time Lakehouse Architectures — Feodor Fernando</title>
+<meta name="description" content="Streaming, CDC, and the table-format wars: how Iceberg, Delta, and Hudi enable a real-time lakehouse, and the operational realities of running one." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body>
+<div class="topbar"><div class="topbar-inner">
+  <a class="back" href="../../index.html">← Portfolio</a>
+  <span class="kind">Research Paper · 04</span>
+</div></div>
+
+<article class="wrap">
+  <p class="eyebrow">Streaming · Lakehouse</p>
+  <h1>Real-Time Lakehouse Architectures: Streaming, CDC &amp; the Table-Format Wars</h1>
+  <p class="lede">Open table formats turned the data lake into a transactional, real-time
+  store. This is what they enable, how Iceberg / Delta / Hudi differ, and the operational
+  realities of running streaming tables in production.</p>
+  <div class="meta">
+    <span>Feodor Fernando</span><span class="dot">•</span>
+    <span>Lakehouse Research</span><span class="dot">•</span>
+    <span>Rev. 2026-06</span>
+  </div>
+
+  <section class="reveal">
+  <h2>1. Why "lakehouse" exists</h2>
+  <p>The lake gave us cheap, open storage but no transactions; the warehouse gave us ACID and
+  performance but locked data in a proprietary engine. The lakehouse merges them: an
+  <strong>open table format</strong> adds ACID commits, snapshot isolation, schema evolution,
+  and row-level updates <em>on top of</em> object storage — so one copy of data serves BI, ML,
+  and streaming, readable by many engines.</p>
+  </section>
+
+  <section class="reveal">
+  <h2>2. What makes a lakehouse "real-time"</h2>
+  <ul>
+    <li><strong>Streaming ingestion</strong> — micro-batch commits (Spark/Flink) land data
+    seconds-to-minutes after it's produced, each batch an atomic snapshot.</li>
+    <li><strong>Change Data Capture (CDC)</strong> — database changes (Debezium) replayed as
+    row-level upserts/deletes, keeping a queryable mirror of operational state.</li>
+    <li><strong>Row-level mutations</strong> — merge-on-read deletes make updates/deletes cheap
+    enough to apply continuously.</li>
+    <li><strong>Snapshot isolation</strong> — readers see a consistent table while writers
+    stream into it.</li>
+  </ul>
+  </section>
+
+  <section class="reveal">
+  <h2>3. The table-format comparison</h2>
+  <table>
+    <thead><tr><th>Capability</th><th>Iceberg</th><th>Delta Lake</th><th>Hudi</th></tr></thead>
+    <tbody>
+      <tr><td>ACID commits</td><td>✅</td><td>✅</td><td>✅</td></tr>
+      <tr><td>Row-level deletes</td><td>✅ pos + eq</td><td>✅ deletion vectors</td><td>✅ CoW/MoR</td></tr>
+      <tr><td>Hidden partitioning</td><td>✅</td><td>❌ (explicit)</td><td>❌</td></tr>
+      <tr><td>Partition evolution</td><td>✅</td><td>limited</td><td>limited</td></tr>
+      <tr><td>Engine breadth</td><td>Spark, Flink, Trino, Snowflake, DuckDB, BigQuery</td><td>Spark-first, broadening</td><td>Spark/Flink-first</td></tr>
+      <tr><td>Streaming upserts</td><td>✅ MOR</td><td>✅</td><td>✅ (built for it)</td></tr>
+    </tbody>
+  </table>
+  <p>Iceberg's differentiators: <strong>hidden partitioning</strong> (queries don't reference
+  partition columns, and you can evolve the spec without rewriting history) and the broadest
+  cross-engine reach via the REST catalog. Delta is strongest inside the Databricks ecosystem;
+  Hudi was purpose-built for high-frequency upserts.</p>
+  </section>
+
+  <section class="reveal">
+  <h2>4. Copy-on-write vs merge-on-read</h2>
+  <p>The decision that defines your latency/cost profile, common to all three formats:</p>
+  <pre><code>              write cost   read cost              best for
+  COW         high         low                    append-mostly, batch
+  MOR         low          grows with deletes     streaming upserts / CDC</code></pre>
+  <p>Rule of thumb for streaming: <strong>ingest with MOR, then compact aggressively</strong>
+  to fold delete files back in and keep read amplification bounded.</p>
+  </section>
+
+  <section class="reveal">
+  <h2>5. The operational realities (where projects fail)</h2>
+  <ul>
+    <li><strong>Small files</strong> — streaming commits create millions of tiny files;
+    compaction (<code>rewrite_data_files</code>) is non-negotiable.</li>
+    <li><strong>Delete-file accumulation</strong> — under MOR, every update adds a delete file;
+    monitor the delete ratio and rewrite position deletes.</li>
+    <li><strong>Snapshot/metadata growth</strong> — expire snapshots and rewrite manifests to
+    keep planning fast.</li>
+    <li><strong>Orphan files</strong> — failed commits leave unreferenced files; clean them.</li>
+    <li><strong>Exactly-once</strong> — achieved via checkpoints + idempotent MERGE, not by
+    trying to force it across the whole chain.</li>
+  </ul>
+  </section>
+
+  <section class="reveal">
+  <h2>6. A reference real-time lakehouse</h2>
+  <pre><code>Kafka / Debezium ─► Spark|Flink streaming ─► bronze (append)
+                                              silver (MERGE, merge-on-read)
+                                              gold   (compacted aggregates)
+                                                   │
+   out-of-band maintenance: compaction · expire_snapshots · remove_orphans
+                                                   │
+                          Trino / Spark / DuckDB / BI  (consistent snapshot reads)</code></pre>
+  <p>This is exactly the shape of the companion <em>Iceberg Streaming Lakehouse</em> and
+  <em>CDC → Iceberg</em> projects.</p>
+  </section>
+
+  <section class="reveal">
+  <h2>7. Choosing a format in 2026</h2>
+  <ul>
+    <li><strong>Vendor-neutral, multi-engine, long horizon</strong> → Iceberg.</li>
+    <li><strong>Databricks-centric shop</strong> → Delta (deepest native integration).</li>
+    <li><strong>Extremely high-frequency upserts</strong> → Hudi is worth evaluating.</li>
+    <li>Convergence is happening (UniForm / cross-format reads) — bet on the open catalog
+    layer, not a single engine.</li>
+  </ul>
+  </section>
+
+  <section class="reveal">
+  <h2>8. Takeaways</h2>
+  <ul>
+    <li>Open table formats make the lake transactional and real-time.</li>
+    <li>MOR for streaming, COW for batch; compaction is the price of real-time.</li>
+    <li>The hard part is operations, not ingestion — budget for maintenance from day one.</li>
+  </ul>
+  </section>
+
+  <div class="actions">
+    <a class="btn primary" href="../../index.html#research">← All research</a>
+    <a class="btn" href="../projects/iceberg-streaming.html">Related project: Iceberg Streaming Lakehouse →</a>
+  </div>
+</article>
+<script src="../assets/site.js"></script>
+</body>
+</html>

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>GenAI Catalog Assistant (RAG) — Feodor Fernando</title>
+<meta name="description" content="A grounded RAG assistant answering natural-language questions over a lakehouse catalog with table citations, using Claude." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body>
+<div class="topbar"><div class="topbar-inner">
+  <a class="back" href="../../index.html">← Portfolio</a>
+  <span class="kind">Project · 02</span>
+</div></div>
+
+<article class="wrap">
+  <p class="eyebrow">GenAI · RAG</p>
+  <h1>🤖 GenAI Catalog Assistant (RAG)</h1>
+  <p class="lede">Ask a data lakehouse questions in plain English — "which tables contain PII
+  and who owns them?" — and get answers grounded in catalog metadata, with citations to the
+  exact tables used.</p>
+  <div class="meta">
+    <span>Claude API</span><span class="dot">•</span><span>RAG</span><span class="dot">•</span>
+    <span>Local embeddings</span>
+  </div>
+
+  <div class="actions">
+    <a class="btn primary" href="https://github.com/feodorfernando/feodor-portfolio/tree/main/projects/02-genai-rag-lakehouse" target="_blank" rel="noopener">View code on GitHub ↗</a>
+  </div>
+
+  <section class="reveal">
+  <h2>What it is</h2>
+  <p>A retrieval-augmented assistant over a lakehouse catalog (schemas, lineage, ownership,
+  PII flags, freshness). Catalog entries are embedded locally; a question retrieves the most
+  relevant tables, and Claude answers <strong>only</strong> from that retrieved context — citing
+  table names and refusing to invent tables or columns. It's a clean, guard-railed pattern for
+  turning trapped catalog knowledge into a conversational interface.</p>
+  </section>
+
+  <section class="reveal">
+  <h2>Design &amp; architecture</h2>
+  <svg class="diagram" viewBox="0 0 820 230" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="RAG architecture">
+    <defs><linearGradient id="g2" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#38bdf8"/><stop offset="1" stop-color="#22d3a6"/></linearGradient></defs>
+    <line class="flow" x1="170" y1="55" x2="270" y2="55" stroke="url(#g2)" stroke-width="3"/>
+    <line class="flow" x1="170" y1="150" x2="430" y2="150" stroke="url(#g2)" stroke-width="3"/>
+    <line class="flow" x1="430" y1="150" x2="430" y2="90" stroke="url(#g2)" stroke-width="3"/>
+    <line class="flow" x1="430" y1="90" x2="560" y2="90" stroke="url(#g2)" stroke-width="3"/>
+    <line class="flow" x1="660" y1="90" x2="660" y2="55" stroke="url(#g2)" stroke-width="3"/>
+
+    <rect x="30" y="30" width="140" height="50" rx="10" fill="#141b2c" stroke="#233048"/>
+    <text x="100" y="52" text-anchor="middle" class="node-label">catalog.json</text>
+    <text x="100" y="68" text-anchor="middle" class="node-label">(schemas, lineage)</text>
+
+    <g class="pulse"><rect x="270" y="30" width="160" height="50" rx="10" fill="#141b2c" stroke="#233048"/></g>
+    <text x="350" y="52" text-anchor="middle" class="node-title">Embeddings index</text>
+    <text x="350" y="68" text-anchor="middle" class="node-label">MiniLM · numpy</text>
+
+    <rect x="30" y="128" width="140" height="46" rx="10" fill="#141b2c" stroke="#38bdf8"/>
+    <text x="100" y="156" text-anchor="middle" class="node-label">user question</text>
+
+    <rect x="350" y="128" width="160" height="46" rx="10" fill="#141b2c" stroke="#233048"/>
+    <text x="430" y="150" text-anchor="middle" class="node-label">cosine top-k</text>
+    <text x="430" y="166" text-anchor="middle" class="node-label">retrieve</text>
+
+    <g class="pulse"><rect x="560" y="65" width="180" height="50" rx="10" fill="#141b2c" stroke="#22d3a6"/></g>
+    <text x="650" y="87" text-anchor="middle" class="node-title">Claude</text>
+    <text x="650" y="103" text-anchor="middle" class="node-label">grounded answer</text>
+
+    <rect x="590" y="20" width="160" height="40" rx="10" fill="#0a0e16" stroke="#233048"/>
+    <text x="670" y="45" text-anchor="middle" class="node-label">answer + [citations]</text>
+  </svg>
+  </section>
+
+  <section class="reveal">
+  <h2>How I built it</h2>
+  <ul>
+    <li><strong>Local embeddings</strong> (<code>all-MiniLM-L6-v2</code>) over rendered catalog
+    documents — no external embedding vendor, normalized vectors for cosine via dot product.</li>
+    <li><strong>Retrieve top-k</strong> relevant tables for the question and stuff their
+    metadata into a <code>&lt;context&gt;</code> block.</li>
+    <li><strong>Strict system prompt</strong>: answer only from context, cite table names, say
+    "not in catalog" rather than hallucinate.</li>
+    <li><strong>Model-swappable</strong>: Sonnet by default; Opus for hardest reasoning, Haiku
+    to cut cost/latency.</li>
+  </ul>
+  </section>
+
+  <section class="reveal">
+  <h2>Tech stack</h2>
+  <div class="chips">
+    <span>Claude API (Anthropic)</span><span>RAG</span><span>sentence-transformers</span>
+    <span>NumPy</span><span>Python</span>
+  </div>
+  </section>
+
+  <section class="reveal">
+  <h2>Details &amp; key files</h2>
+  <table>
+    <thead><tr><th>File</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><code>src/ingest_catalog.py</code></td><td>render catalog → embed → build local index</td></tr>
+      <tr><td><code>src/rag_assistant.py</code></td><td>retrieve top-k + grounded Claude answer with citations</td></tr>
+      <tr><td><code>data/catalog.json</code></td><td>sample lakehouse catalog (bronze→silver→gold + features)</td></tr>
+    </tbody>
+  </table>
+  </section>
+
+  <div class="actions">
+    <a class="btn primary" href="https://github.com/feodorfernando/feodor-portfolio/tree/main/projects/02-genai-rag-lakehouse" target="_blank" rel="noopener">View code on GitHub ↗</a>
+    <a class="btn" href="../research/ai-in-data-pipelines.html">Related paper: AI in Data Pipelines →</a>
+  </div>
+</article>
+<script src="../assets/site.js"></script>
+</body>
+</html>

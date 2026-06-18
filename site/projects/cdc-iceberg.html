@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Real-Time CDC → Iceberg — Feodor Fernando</title>
+<meta name="description" content="Mirror an operational database into Apache Iceberg in near-real-time using Debezium CDC with idempotent, LSN-guarded MERGEs." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body>
+<div class="topbar"><div class="topbar-inner">
+  <a class="back" href="../../index.html">← Portfolio</a>
+  <span class="kind">Project · 04</span>
+</div></div>
+
+<article class="wrap">
+  <p class="eyebrow">CDC · Lakehouse</p>
+  <h1>🔄 Real-Time CDC → Iceberg</h1>
+  <p class="lede">Mirror an operational database (Postgres/MySQL) into Apache Iceberg in
+  near-real-time via Debezium CDC — applying inserts, updates, and deletes as row-level
+  operations with idempotent, LSN-guarded MERGEs.</p>
+  <div class="meta">
+    <span>Debezium CDC</span><span class="dot">•</span><span>Apache Iceberg</span><span class="dot">•</span>
+    <span>Spark Streaming</span>
+  </div>
+
+  <div class="actions">
+    <a class="btn primary" href="https://github.com/feodorfernando/feodor-portfolio/tree/main/projects/04-realtime-cdc-iceberg" target="_blank" rel="noopener">View code on GitHub ↗</a>
+    <a class="btn" href="https://github.com/feodorfernando/feodor-portfolio/blob/main/projects/04-realtime-cdc-iceberg/docs/cdc-design.md" target="_blank" rel="noopener">Read the design note ↗</a>
+  </div>
+
+  <section class="reveal">
+  <h2>What it is</h2>
+  <p>A streaming consumer that turns a database's own change log into a continuously-updated
+  Iceberg replica. Debezium publishes change events (insert/update/delete) to Kafka; the job
+  parses the Debezium envelope, collapses to the latest change per primary key per micro-batch,
+  and applies a <code>MERGE</code> that upserts non-deletes and applies tombstone deletes —
+  guarded by the source LSN so replay and out-of-order events are idempotent.</p>
+  </section>
+
+  <section class="reveal">
+  <h2>Design &amp; architecture</h2>
+  <svg class="diagram" viewBox="0 0 820 180" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="CDC architecture">
+    <defs><linearGradient id="g4" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#38bdf8"/><stop offset="1" stop-color="#22d3a6"/></linearGradient></defs>
+    <line class="flow" x1="150" y1="80" x2="240" y2="80" stroke="url(#g4)" stroke-width="3"/>
+    <line class="flow" x1="380" y1="80" x2="470" y2="80" stroke="url(#g4)" stroke-width="3"/>
+    <line class="flow" x1="640" y1="80" x2="730" y2="80" stroke="url(#g4)" stroke-width="3"/>
+
+    <g class="pulse"><rect x="20" y="55" width="130" height="50" rx="10" fill="#141b2c" stroke="#233048"/></g>
+    <text x="85" y="77" text-anchor="middle" class="node-title">Postgres WAL</text>
+    <text x="85" y="93" text-anchor="middle" class="node-label">Debezium</text>
+
+    <rect x="240" y="55" width="140" height="50" rx="10" fill="#141b2c" stroke="#233048"/>
+    <text x="310" y="77" text-anchor="middle" class="node-title">Kafka</text>
+    <text x="310" y="93" text-anchor="middle" class="node-label">keyed by PK</text>
+
+    <rect x="470" y="50" width="170" height="60" rx="10" fill="#141b2c" stroke="#38bdf8"/>
+    <text x="555" y="74" text-anchor="middle" class="node-title">Spark MERGE</text>
+    <text x="555" y="92" text-anchor="middle" class="node-label">upsert + delete · LSN guard</text>
+
+    <g class="pulse"><rect x="730" y="55" width="80" height="50" rx="10" fill="#141b2c" stroke="#22d3a6"/></g>
+    <text x="770" y="84" text-anchor="middle" class="node-label">Iceberg</text>
+  </svg>
+  </section>
+
+  <section class="reveal">
+  <h2>How I built it</h2>
+  <ul>
+    <li><strong>Debezium envelope parsing</strong> (<code>before</code>/<code>after</code>/
+    <code>op</code>/<code>lsn</code>/<code>ts_ms</code>) into a generic row image, so it works
+    for any source table without a hard-coded schema.</li>
+    <li><strong>Latest-per-key collapse</strong> within each batch by LSN.</li>
+    <li><strong>LSN-guarded MERGE</strong>: only apply a change newer than what's stored →
+    idempotent under replay and out-of-order delivery.</li>
+    <li><strong>Snapshot → stream handoff</strong>: read from earliest so the Debezium initial
+    snapshot seeds the table, then stream changes — identical handling for both.</li>
+    <li><strong>Merge-on-read</strong> so deletes/updates are cheap; pairs with the maintenance
+    job from the Iceberg Streaming project (CDC accumulates delete files fast).</li>
+  </ul>
+  </section>
+
+  <section class="reveal">
+  <h2>Tech stack</h2>
+  <div class="chips">
+    <span>Debezium CDC</span><span>Apache Iceberg</span><span>Spark Structured Streaming</span>
+    <span>Kafka</span><span>Python</span>
+  </div>
+  </section>
+
+  <section class="reveal">
+  <h2>Details &amp; key files</h2>
+  <table>
+    <thead><tr><th>File</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><code>src/cdc_to_iceberg.py</code></td><td>Spark consumer applying Debezium CDC to Iceberg</td></tr>
+      <tr><td><code>docs/cdc-design.md</code></td><td>design note: ordering, deletes, exactly-once, schema evolution</td></tr>
+    </tbody>
+  </table>
+  </section>
+
+  <div class="actions">
+    <a class="btn primary" href="https://github.com/feodorfernando/feodor-portfolio/tree/main/projects/04-realtime-cdc-iceberg" target="_blank" rel="noopener">View code on GitHub ↗</a>
+    <a class="btn" href="../research/realtime-lakehouse.html">Related paper: Real-Time Lakehouse →</a>
+  </div>
+</article>
+<script src="../assets/site.js"></script>
+</body>
+</html>

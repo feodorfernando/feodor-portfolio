@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Integrating Generative AI into Production Data Pipelines — Feodor Fernando</title>
+<meta name="description" content="A research note on where generative AI genuinely helps in data pipelines — and where it must never be in the hot path." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body>
+<div class="topbar"><div class="topbar-inner">
+  <a class="back" href="../../index.html">← Portfolio</a>
+  <span class="kind">Research Paper · 01</span>
+</div></div>
+
+<article class="wrap">
+  <p class="eyebrow">Pipelines × AI</p>
+  <h1>Integrating Generative AI into Production Data Pipelines</h1>
+  <p class="lede">Where LLMs genuinely earn their place in a data pipeline — and the
+  architectural line you must not cross: never let a probabilistic model sit silently in
+  the deterministic data path.</p>
+  <div class="meta">
+    <span>Feodor Fernando</span><span class="dot">•</span>
+    <span>Data Engineering Research</span><span class="dot">•</span>
+    <span>Rev. 2026-06</span>
+  </div>
+
+  <section class="reveal">
+  <h2>1. The framing problem</h2>
+  <p>"Add AI to the pipeline" is usually proposed as if AI were another transform step.
+  It is not. A data pipeline's core promise is <strong>determinism and reproducibility</strong>:
+  the same input must produce the same output, every run. A generative model is, by
+  construction, probabilistic. The design question is therefore not <em>"can the LLM do
+  this step?"</em> but <em>"is this a judgement task or a correctness task?"</em></p>
+  <blockquote>Use LLMs for judgement and generation at the edges; keep enforcement and
+  movement of data deterministic in the core.</blockquote>
+  </section>
+
+  <section class="reveal">
+  <h2>2. A taxonomy of where AI helps</h2>
+  <table>
+    <thead><tr><th>Use case</th><th>AI role</th><th>In hot path?</th></tr></thead>
+    <tbody>
+      <tr><td>Schema mapping / column matching</td><td>Suggest mappings between source &amp; target schemas</td><td>No — human-reviewed</td></tr>
+      <tr><td>Data quality rule generation</td><td>Propose typed expectations from a profile</td><td>No — rules then run deterministically</td></tr>
+      <tr><td>Semantic anomaly detection</td><td>Flag values that are "wrong" in meaning, not just range</td><td>Side path / alerting</td></tr>
+      <tr><td>Pipeline documentation &amp; lineage prose</td><td>Generate human-readable docs from metadata</td><td>No — offline</td></tr>
+      <tr><td>Natural-language → SQL / transforms</td><td>Draft queries for analysts</td><td>No — generated code is reviewed/tested</td></tr>
+      <tr><td>Unstructured → structured extraction</td><td>Turn text/PDFs into typed rows</td><td>Yes, but with validation gates</td></tr>
+    </tbody>
+  </table>
+  </section>
+
+  <section class="reveal">
+  <h2>3. The "propose vs enforce" pattern</h2>
+  <p>The safest and most reusable pattern across all of the above is to split the LLM's
+  <em>proposal</em> from the system's <em>enforcement</em>:</p>
+  <pre><code>profile / context ──► LLM ──► structured proposal (tool-use JSON)
+                                     │
+                                     ▼
+                       deterministic executor (SQL / pandas / Spark)
+                                     │
+                                     ▼
+                              auditable PASS / FAIL</code></pre>
+  <p>The LLM never directly mutates data or returns a verdict; it returns a typed object
+  (via tool-use / structured output) that plain code then executes. A hallucinated rule
+  becomes a bad rule you can see in a diff — not silently corrupted data. (This is exactly
+  how the companion <em>LLM Data Quality Agent</em> project is built.)</p>
+  </section>
+
+  <section class="reveal">
+  <h2>4. Unstructured extraction — the one true hot-path use</h2>
+  <p>The case where an LLM legitimately sits inside the data path is converting
+  unstructured input (support emails, contracts, scanned forms) into structured rows.
+  Even here, you wrap it in gates:</p>
+  <ul>
+    <li><strong>Schema-constrained output</strong> — force the model to emit JSON matching a
+    strict schema (tool-use), so downstream typing never breaks.</li>
+    <li><strong>Validation layer</strong> — reject/route rows failing referential or range
+    checks to a dead-letter queue for human review.</li>
+    <li><strong>Confidence + provenance</strong> — store the model, prompt version, and a
+    confidence signal alongside each extracted row for auditability.</li>
+    <li><strong>Idempotency</strong> — cache by content hash so re-runs don't re-spend tokens
+    or produce drift.</li>
+  </ul>
+  </section>
+
+  <section class="reveal">
+  <h2>5. Cost, latency &amp; failure modes</h2>
+  <ul>
+    <li><strong>Cost scales per row.</strong> An LLM call per record is fine at thousands/day,
+    ruinous at millions/hour. Batch, cache aggressively, and reserve the model for rows that
+    cheaper heuristics can't classify.</li>
+    <li><strong>Latency is non-deterministic.</strong> Never put a synchronous LLM call on a
+    critical streaming path with a tight SLA; use async side-paths.</li>
+    <li><strong>Model drift.</strong> Pin model versions; a silent provider upgrade can shift
+    outputs. Re-run an eval set before adopting a new model id.</li>
+    <li><strong>Prompt injection via data.</strong> Untrusted text fed to an LLM can carry
+    instructions. Treat extracted instructions as data, never as commands.</li>
+  </ul>
+  </section>
+
+  <section class="reveal">
+  <h2>6. Evaluation: you can't ship what you can't measure</h2>
+  <p>Any AI step needs a <strong>golden eval set</strong> and a metric before it goes near
+  production: extraction accuracy / F1, rule precision-recall, or NL-to-SQL execution match.
+  Wire the eval into CI so a prompt or model change that regresses quality fails the build —
+  the same discipline you'd apply to any deterministic transform.</p>
+  </section>
+
+  <section class="reveal">
+  <h2>7. Reference: an AI-augmented pipeline</h2>
+  <pre><code>sources ─► ingest ─► [deterministic clean/dedup] ─► curated lakehouse ─► BI
+                          │                               ▲
+              (side) LLP: DQ rule proposal          (side) LLM: NL→SQL for analysts
+                          │                               │
+              (hot, gated) LLM extraction for unstructured sources only</code></pre>
+  </section>
+
+  <section class="reveal">
+  <h2>8. Takeaways</h2>
+  <ul>
+    <li>AI belongs at the <strong>edges</strong> (proposal, generation, extraction, docs), not
+    as a silent core transform.</li>
+    <li><strong>Propose-then-enforce</strong> keeps determinism and auditability.</li>
+    <li>Gate every hot-path use with schema constraints, validation, and idempotency.</li>
+    <li>No AI step ships without an <strong>eval set in CI</strong>.</li>
+  </ul>
+  </section>
+
+  <div class="actions">
+    <a class="btn primary" href="../../index.html#research">← All research</a>
+    <a class="btn" href="../projects/llm-data-quality.html">Related project: LLM Data Quality →</a>
+  </div>
+</article>
+<script src="../assets/site.js"></script>
+</body>
+</html>

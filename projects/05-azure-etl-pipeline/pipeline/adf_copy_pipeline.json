@@ -1,0 +1,49 @@
+{
+  "name": "pl_ingest_operational_to_lake",
+  "properties": {
+    "description": "ADF pipeline: copy operational stores (Azure SQL, Cosmos DB) into ADLS gen2 bronze, then trigger the Databricks transform.",
+    "activities": [
+      {
+        "name": "Copy_AzureSQL_to_Bronze",
+        "type": "Copy",
+        "policy": { "timeout": "0.02:00:00", "retry": 2, "retryIntervalInSeconds": 30 },
+        "inputs": [{ "referenceName": "ds_azuresql_orders", "type": "DatasetReference" }],
+        "outputs": [{ "referenceName": "ds_adls_bronze_parquet", "type": "DatasetReference" }],
+        "typeProperties": {
+          "source": {
+            "type": "AzureSqlSource",
+            "sqlReaderQuery": "SELECT * FROM dbo.orders WHERE modified_at >= '@{formatDateTime(pipeline().parameters.windowStart,'yyyy-MM-ddTHH:mm:ssZ')}'"
+          },
+          "sink": { "type": "ParquetSink", "storeSettings": { "type": "AzureBlobFSWriteSettings" } },
+          "enableStaging": false
+        }
+      },
+      {
+        "name": "Copy_Cosmos_to_Bronze",
+        "type": "Copy",
+        "dependsOn": [{ "activity": "Copy_AzureSQL_to_Bronze", "dependencyConditions": ["Succeeded"] }],
+        "inputs": [{ "referenceName": "ds_cosmos_profiles", "type": "DatasetReference" }],
+        "outputs": [{ "referenceName": "ds_adls_bronze_profiles", "type": "DatasetReference" }],
+        "typeProperties": {
+          "source": { "type": "CosmosDbSqlApiSource", "query": "SELECT * FROM c WHERE c._ts >= @{pipeline().parameters.windowStartEpoch}" },
+          "sink": { "type": "ParquetSink" }
+        }
+      },
+      {
+        "name": "Run_Databricks_Transform",
+        "type": "DatabricksNotebook",
+        "dependsOn": [{ "activity": "Copy_Cosmos_to_Bronze", "dependencyConditions": ["Succeeded"] }],
+        "linkedServiceName": { "referenceName": "ls_databricks", "type": "LinkedServiceReference" },
+        "typeProperties": {
+          "notebookPath": "/Repos/feodor/databricks-lakehouse-genie/notebooks/02_silver_transform",
+          "baseParameters": { "window_start": "@pipeline().parameters.windowStart" }
+        }
+      }
+    ],
+    "parameters": {
+      "windowStart": { "type": "String" },
+      "windowStartEpoch": { "type": "Int" }
+    },
+    "annotations": ["medallion", "bronze-ingest"]
+  }
+}

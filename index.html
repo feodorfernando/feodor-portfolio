@@ -4,150 +4,290 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Feodor Fernando — Data &amp; AI Engineer</title>
-  <meta name="description" content="Portfolio of Feodor Fernando — Data Engineer &amp; Cloud Wrangler. Projects in streaming lakehouses (Apache Iceberg), GenAI for data platforms, and AI-powered data quality." />
+  <meta name="description" content="Portfolio of Feodor Fernando — Data Engineer &amp; Cloud Wrangler. Streaming lakehouses (Apache Iceberg), Azure data pipelines, Databricks, and generative AI for data platforms. 6 projects + 5 research papers." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <!-- animated aurora background -->
+  <div class="aurora" aria-hidden="true"><span></span><span></span><span></span></div>
+
   <header class="hero">
     <nav class="nav">
       <span class="brand">FF</span>
       <div class="nav-links">
+        <a href="#pipeline">Pipeline</a>
         <a href="#projects">Projects</a>
+        <a href="#research">Research</a>
         <a href="#about">About</a>
         <a href="https://www.linkedin.com/in/feodorfernando/" target="_blank" rel="noopener">LinkedIn</a>
       </div>
     </nav>
 
     <div class="hero-inner">
-      <p class="eyebrow">Data Engineer · Cloud Wrangler · Chennai, India</p>
-      <h1>Feodor Fernando</h1>
-      <p class="tagline">
-        I turn messy, high-volume data into reliable, real-time lakehouses —
-        and wire generative AI into the data platform itself.
-      </p>
-      <div class="badges">
-        <span>Apache Iceberg</span>
-        <span>Spark Structured Streaming</span>
-        <span>Kafka / CDC</span>
-        <span>Databricks</span>
-        <span>Azure &amp; AWS</span>
-        <span>Claude / GenAI</span>
-        <span>Python</span>
+      <div class="hero-text">
+        <p class="eyebrow fade-up">Data Engineer · Cloud Wrangler · Chennai, India</p>
+        <h1 class="fade-up d1">Feodor Fernando</h1>
+        <p class="typed-line fade-up d2">Building <span id="typed" class="accent"></span><span class="caret">|</span></p>
+        <p class="tagline fade-up d3">
+          I turn messy, high-volume data into reliable, real-time lakehouses — and wire
+          generative AI directly into the data platform.
+        </p>
+        <div class="badges fade-up d4">
+          <span>Apache Iceberg</span><span>Azure</span><span>Databricks</span>
+          <span>Spark / Kafka</span><span>CDC</span><span>Claude / GenAI</span><span>Python</span>
+        </div>
+        <div class="cta fade-up d5">
+          <a class="btn primary" href="#projects">Explore projects</a>
+          <a class="btn" href="#research">Read research</a>
+        </div>
       </div>
-      <div class="cta">
-        <a class="btn primary" href="#projects">View projects</a>
-        <a class="btn" href="https://www.linkedin.com/in/feodorfernando/" target="_blank" rel="noopener">Connect on LinkedIn</a>
+
+      <!-- animated data-engineer avatar (SVG, not a photo) -->
+      <div class="hero-art fade-up d3" aria-hidden="true">
+        <svg viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <radialGradient id="halo" cx="50%" cy="40%" r="60%">
+              <stop offset="0" stop-color="#38bdf8" stop-opacity=".35"/>
+              <stop offset="1" stop-color="#38bdf8" stop-opacity="0"/>
+            </radialGradient>
+            <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#38bdf8"/><stop offset="1" stop-color="#22d3a6"/>
+            </linearGradient>
+          </defs>
+          <circle cx="120" cy="120" r="110" fill="url(#halo)"/>
+          <!-- orbit rings -->
+          <circle class="orbit o1" cx="120" cy="120" r="92" fill="none" stroke="url(#ring)" stroke-width="1.5" stroke-dasharray="4 10"/>
+          <circle class="orbit o2" cx="120" cy="120" r="70" fill="none" stroke="url(#ring)" stroke-width="1.5" stroke-dasharray="3 9"/>
+          <!-- central database stack -->
+          <g class="float">
+            <ellipse cx="120" cy="92" rx="34" ry="12" fill="#141b2c" stroke="#38bdf8" stroke-width="2"/>
+            <path d="M86 92 v36 a34 12 0 0 0 68 0 v-36" fill="#141b2c" stroke="#38bdf8" stroke-width="2"/>
+            <ellipse cx="120" cy="110" rx="34" ry="12" fill="none" stroke="#22d3a6" stroke-width="1.5"/>
+            <ellipse cx="120" cy="128" rx="34" ry="12" fill="none" stroke="#22d3a6" stroke-width="1.5"/>
+          </g>
+          <!-- orbiting data nodes -->
+          <g class="spin">
+            <circle cx="212" cy="120" r="6" fill="#38bdf8"/>
+            <circle cx="28" cy="120" r="6" fill="#22d3a6"/>
+            <circle cx="120" cy="28" r="5" fill="#38bdf8"/>
+            <circle cx="120" cy="212" r="5" fill="#22d3a6"/>
+          </g>
+        </svg>
       </div>
+    </div>
+
+    <div class="stat-row fade-up d5">
+      <div><strong>6</strong><span>Projects</span></div>
+      <div><strong>5</strong><span>Research papers</span></div>
+      <div><strong>4</strong><span>Cloud certs</span></div>
+      <div><strong>∞</strong><span>Rows wrangled</span></div>
     </div>
   </header>
 
   <main>
-    <section id="projects" class="section">
-      <h2 class="section-title">Projects</h2>
-      <p class="section-sub">
-        Four hands-on projects at the intersection of <strong>data engineering</strong>,
-        <strong>streaming</strong>, and <strong>generative AI</strong>. Each ships
-        runnable code plus a written research / design note.
-      </p>
+    <!-- ANIMATED END-TO-END PIPELINE -->
+    <section id="pipeline" class="section">
+      <h2 class="section-title reveal">A modern data platform, end to end</h2>
+      <p class="section-sub reveal">Watch the data flow: operational sources → ingestion/ETL →
+        analytical lakehouse → AI &amp; BI. This is the architecture my projects are built on.</p>
 
-      <div class="grid">
-        <!-- Project 1 -->
-        <article class="card">
-          <div class="card-icon">🧊</div>
-          <h3>Iceberg Streaming Lakehouse</h3>
-          <p>
-            Real-time Kafka → Apache Iceberg ingestion with merge-on-read upserts,
-            late-data correction, and the compaction/maintenance jobs that keep a
-            streaming table healthy. Includes a deep research note on Iceberg
-            metadata, copy-on-write vs merge-on-read, and the small-file problem.
-          </p>
-          <div class="tags">
-            <span>Iceberg</span><span>Spark Streaming</span><span>Kafka</span><span>Research note</span>
-          </div>
-          <div class="card-links">
-            <a href="projects/01-iceberg-streaming-lakehouse/README.md">README</a>
-            <a href="projects/01-iceberg-streaming-lakehouse/docs/iceberg-streaming-research.md">Research note →</a>
-          </div>
-        </article>
+      <div class="pipeline-wrap reveal">
+      <svg viewBox="0 0 1000 380" xmlns="http://www.w3.org/2000/svg" class="pipeline-svg" role="img" aria-label="End-to-end data platform">
+        <defs>
+          <linearGradient id="flowg" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stop-color="#38bdf8"/><stop offset="1" stop-color="#22d3a6"/>
+          </linearGradient>
+        </defs>
 
-        <!-- Project 2 -->
-        <article class="card">
-          <div class="card-icon">🤖</div>
-          <h3>GenAI Catalog Assistant (RAG)</h3>
-          <p>
-            A retrieval-augmented assistant that answers natural-language questions
-            about a lakehouse catalog — schemas, lineage, ownership, PII — grounded
-            in metadata with table citations. Local embeddings + the Claude API,
-            with guardrails against hallucinated tables.
-          </p>
-          <div class="tags">
-            <span>Claude API</span><span>RAG</span><span>Embeddings</span><span>Lineage</span>
-          </div>
-          <div class="card-links">
-            <a href="projects/02-genai-rag-lakehouse/README.md">README →</a>
-          </div>
-        </article>
+        <!-- stage headers -->
+        <text x="120" y="30" text-anchor="middle" class="stage-h">Operational Data</text>
+        <text x="370" y="30" text-anchor="middle" class="stage-h">Ingestion / ETL</text>
+        <text x="640" y="30" text-anchor="middle" class="stage-h">Lakehouse &amp; Processing</text>
+        <text x="895" y="30" text-anchor="middle" class="stage-h">AI &amp; BI</text>
 
-        <!-- Project 3 -->
-        <article class="card">
-          <div class="card-icon">🔎</div>
-          <h3>LLM-Powered Data Quality Agent</h3>
-          <p>
-            Profiles a dataset, asks Claude to propose typed validation rules via
-            tool-use, then enforces them deterministically in pandas. The LLM
-            handles judgement; enforcement stays auditable Python — so a
-            hallucinated rule can't pass bad data. CI-gate ready.
-          </p>
-          <div class="tags">
-            <span>Claude tool-use</span><span>pandas</span><span>Data quality</span><span>CI gate</span>
-          </div>
-          <div class="card-links">
-            <a href="projects/03-llm-data-quality/README.md">README →</a>
-          </div>
-        </article>
+        <!-- divider guides -->
+        <line x1="245" y1="45" x2="245" y2="360" stroke="#233048" stroke-dasharray="4 6"/>
+        <line x1="500" y1="45" x2="500" y2="360" stroke="#233048" stroke-dasharray="4 6"/>
+        <line x1="785" y1="45" x2="785" y2="360" stroke="#233048" stroke-dasharray="4 6"/>
 
-        <!-- Project 4 -->
-        <article class="card">
-          <div class="card-icon">🔄</div>
-          <h3>Real-Time CDC → Iceberg</h3>
-          <p>
-            Mirror an operational database into Iceberg in near-real-time via
-            Debezium CDC — applying inserts, updates, and deletes with LSN-guarded,
-            idempotent MERGEs. Ships a design note on the hard parts: ordering,
-            deletes, exactly-once, and snapshot→stream handoff.
-          </p>
-          <div class="tags">
-            <span>Debezium CDC</span><span>Iceberg</span><span>Spark Streaming</span><span>Design note</span>
-          </div>
-          <div class="card-links">
-            <a href="projects/04-realtime-cdc-iceberg/README.md">README</a>
-            <a href="projects/04-realtime-cdc-iceberg/docs/cdc-design.md">Design note →</a>
-          </div>
-        </article>
+        <!-- flow connectors -->
+        <line class="flow" x1="200" y1="120" x2="300" y2="120" stroke="url(#flowg)" stroke-width="3"/>
+        <line class="flow" x1="200" y1="250" x2="300" y2="250" stroke="url(#flowg)" stroke-width="3"/>
+        <line class="flow" x1="440" y1="120" x2="560" y2="130" stroke="url(#flowg)" stroke-width="3"/>
+        <line class="flow" x1="440" y1="250" x2="560" y2="200" stroke="url(#flowg)" stroke-width="3"/>
+        <line class="flow" x1="730" y1="170" x2="830" y2="150" stroke="url(#flowg)" stroke-width="3"/>
+        <line class="flow" x1="730" y1="200" x2="830" y2="240" stroke="url(#flowg)" stroke-width="3"/>
+
+        <!-- operational nodes -->
+        <g class="pulse"><rect x="40" y="95" width="160" height="50" rx="10" fill="#141b2c" stroke="#233048"/></g>
+        <text x="120" y="118" text-anchor="middle" class="n-title">Event Hub / Kafka</text>
+        <text x="120" y="134" text-anchor="middle" class="n-sub">streaming telemetry</text>
+        <rect x="40" y="225" width="160" height="50" rx="10" fill="#141b2c" stroke="#233048"/>
+        <text x="120" y="248" text-anchor="middle" class="n-title">Azure SQL · Cosmos</text>
+        <text x="120" y="264" text-anchor="middle" class="n-sub">operational stores · CDC</text>
+
+        <!-- ingestion nodes -->
+        <rect x="300" y="95" width="140" height="50" rx="10" fill="#141b2c" stroke="#38bdf8"/>
+        <text x="370" y="118" text-anchor="middle" class="n-title">Stream Analytics</text>
+        <text x="370" y="134" text-anchor="middle" class="n-sub">/ Spark Streaming</text>
+        <rect x="300" y="225" width="140" height="50" rx="10" fill="#141b2c" stroke="#38bdf8"/>
+        <text x="370" y="248" text-anchor="middle" class="n-title">Data Factory</text>
+        <text x="370" y="264" text-anchor="middle" class="n-sub">Debezium CDC</text>
+
+        <!-- lakehouse box -->
+        <rect x="555" y="80" width="180" height="200" rx="12" fill="#0e1626" stroke="#22d3a6" stroke-dasharray="5 5"/>
+        <text x="645" y="105" text-anchor="middle" class="n-sub">Iceberg / Delta lakehouse</text>
+        <g class="pulse"><rect x="575" y="120" width="140" height="36" rx="8" fill="#141b2c" stroke="#233048"/></g>
+        <text x="645" y="143" text-anchor="middle" class="n-title">bronze</text>
+        <rect x="575" y="166" width="140" height="36" rx="8" fill="#141b2c" stroke="#38bdf8"/>
+        <text x="645" y="189" text-anchor="middle" class="n-title">silver (MERGE)</text>
+        <rect x="575" y="212" width="140" height="36" rx="8" fill="#141b2c" stroke="#22d3a6"/>
+        <text x="645" y="235" text-anchor="middle" class="n-title">gold (aggregates)</text>
+
+        <!-- AI/BI nodes -->
+        <g class="pulse"><rect x="830" y="125" width="140" height="50" rx="10" fill="#141b2c" stroke="#22d3a6"/></g>
+        <text x="900" y="148" text-anchor="middle" class="n-title">Genie / RAG (AI)</text>
+        <text x="900" y="164" text-anchor="middle" class="n-sub">NL → insight</text>
+        <rect x="830" y="215" width="140" height="50" rx="10" fill="#141b2c" stroke="#233048"/>
+        <text x="900" y="238" text-anchor="middle" class="n-title">Power BI</text>
+        <text x="900" y="254" text-anchor="middle" class="n-sub">dashboards</text>
+
+        <!-- moving data packets -->
+        <circle r="4" fill="#38bdf8"><animateMotion dur="3s" repeatCount="indefinite" path="M200,120 L300,120"/></circle>
+        <circle r="4" fill="#22d3a6"><animateMotion dur="3.4s" repeatCount="indefinite" path="M440,120 L560,130"/></circle>
+        <circle r="4" fill="#38bdf8"><animateMotion dur="3.2s" repeatCount="indefinite" path="M730,170 L830,150"/></circle>
+        <circle r="4" fill="#22d3a6"><animateMotion dur="3.6s" repeatCount="indefinite" path="M200,250 L300,250"/></circle>
+      </svg>
       </div>
     </section>
 
+    <!-- PROJECTS -->
+    <section id="projects" class="section">
+      <h2 class="section-title reveal">Projects</h2>
+      <p class="section-sub reveal">Six hands-on projects across streaming, Azure pipelines,
+        Databricks, and generative AI. Each has its own page — overview, design, stack &amp;
+        details — and links to the code.</p>
+
+      <div class="grid">
+        <a class="card reveal" href="site/projects/iceberg-streaming.html">
+          <div class="card-icon">🧊</div>
+          <h3>Iceberg Streaming Lakehouse</h3>
+          <p>Kafka → Iceberg streaming ingestion with merge-on-read upserts, late-data
+            correction, and maintenance jobs. Plus a deep research note on Iceberg internals.</p>
+          <div class="tags"><span>Iceberg</span><span>Spark Streaming</span><span>Kafka</span></div>
+          <span class="card-go">View project →</span>
+        </a>
+
+        <a class="card reveal" href="site/projects/genai-rag.html">
+          <div class="card-icon">🤖</div>
+          <h3>GenAI Catalog Assistant (RAG)</h3>
+          <p>Grounded RAG over a lakehouse catalog — schemas, lineage, PII — answering in plain
+            English with table citations. Local embeddings + the Claude API.</p>
+          <div class="tags"><span>Claude API</span><span>RAG</span><span>Embeddings</span></div>
+          <span class="card-go">View project →</span>
+        </a>
+
+        <a class="card reveal" href="site/projects/llm-data-quality.html">
+          <div class="card-icon">🔎</div>
+          <h3>LLM Data Quality Agent</h3>
+          <p>Claude proposes typed validation rules via tool-use; pandas enforces them
+            deterministically. Auditable, CI-gate ready.</p>
+          <div class="tags"><span>Claude tool-use</span><span>pandas</span><span>CI gate</span></div>
+          <span class="card-go">View project →</span>
+        </a>
+
+        <a class="card reveal" href="site/projects/cdc-iceberg.html">
+          <div class="card-icon">🔄</div>
+          <h3>Real-Time CDC → Iceberg</h3>
+          <p>Mirror an operational DB into Iceberg in near-real-time via Debezium CDC with
+            LSN-guarded idempotent MERGEs. Includes a design note.</p>
+          <div class="tags"><span>Debezium</span><span>Iceberg</span><span>Spark</span></div>
+          <span class="card-go">View project →</span>
+        </a>
+
+        <a class="card reveal new" href="site/projects/azure-etl-pipeline.html">
+          <div class="card-icon">☁️</div>
+          <h3>Azure End-to-End Pipeline <span class="pill">New</span></h3>
+          <p>Event Hub + Azure SQL/Cosmos → Stream Analytics &amp; Data Factory → ADLS gen2 /
+            Databricks / Synapse → Power BI. Hot + cold paths, with real code.</p>
+          <div class="tags"><span>ADF</span><span>Synapse</span><span>Stream Analytics</span></div>
+          <span class="card-go">View project →</span>
+        </a>
+
+        <a class="card reveal new" href="site/projects/databricks-lakehouse-genie.html">
+          <div class="card-icon">🧱</div>
+          <h3>Databricks Lakehouse + Genie <span class="pill">New</span></h3>
+          <p>Delta medallion (Auto Loader → MERGE → gold) topped with a Genie-ready semantic
+            layer for accurate natural-language analytics.</p>
+          <div class="tags"><span>Databricks</span><span>Delta</span><span>Genie / AI-BI</span></div>
+          <span class="card-go">View project →</span>
+        </a>
+      </div>
+    </section>
+
+    <!-- RESEARCH -->
+    <section id="research" class="section">
+      <h2 class="section-title reveal">Research papers</h2>
+      <p class="section-sub reveal">Written notes on pipelines &amp; AI integration, Databricks
+        Genie accuracy, database performance, and the real-time lakehouse — all readable in your
+        browser.</p>
+
+      <div class="grid research-grid">
+        <a class="paper reveal" href="site/research/ai-in-data-pipelines.html">
+          <span class="paper-no">01</span>
+          <h3>Integrating Generative AI into Production Data Pipelines</h3>
+          <p>Where LLMs genuinely help — and the line you must not cross.</p>
+          <span class="card-go">Read paper →</span>
+        </a>
+        <a class="paper reveal" href="site/research/databricks-genie-improvement.html">
+          <span class="paper-no">02</span>
+          <h3>Improving Databricks Genie: Raising NL-to-SQL Accuracy</h3>
+          <p>The metadata &amp; semantic levers that move Genie accuracy.</p>
+          <span class="card-go">Read paper →</span>
+        </a>
+        <a class="paper reveal" href="site/research/database-performance.html">
+          <span class="paper-no">03</span>
+          <h3>Database Performance Improvement at Scale</h3>
+          <p>Indexing, partitioning &amp; query optimization that move latency.</p>
+          <span class="card-go">Read paper →</span>
+        </a>
+        <a class="paper reveal" href="site/research/realtime-lakehouse.html">
+          <span class="paper-no">04</span>
+          <h3>Real-Time Lakehouse Architectures</h3>
+          <p>Streaming, CDC &amp; the Iceberg / Delta / Hudi table-format wars.</p>
+          <span class="card-go">Read paper →</span>
+        </a>
+        <a class="paper reveal" href="site/research/data-quality-ai.html">
+          <span class="paper-no">05</span>
+          <h3>AI-Augmented Data Quality &amp; Observability</h3>
+          <p>LLMs propose &amp; triage; deterministic code enforces.</p>
+          <span class="card-go">Read paper →</span>
+        </a>
+      </div>
+    </section>
+
+    <!-- ABOUT -->
     <section id="about" class="section about">
-      <h2 class="section-title">About</h2>
-      <p>
-        I'm a data engineer who likes the unglamorous parts: exactly-once
-        ingestion, schema evolution, compaction, and the metadata layer that
-        makes a lakehouse trustworthy. Lately I've been wiring generative AI
-        <em>into</em> the data platform — RAG over catalogs, LLM-assisted data
-        quality — rather than treating AI as a separate stack.
+      <h2 class="section-title reveal">About</h2>
+      <p class="reveal">
+        I'm a data engineer who likes the unglamorous parts: exactly-once ingestion, schema
+        evolution, compaction, and the metadata layer that makes a lakehouse trustworthy. Lately
+        I've been wiring generative AI <em>into</em> the data platform — RAG over catalogs,
+        LLM-assisted data quality, Genie semantic layers — rather than treating AI as a separate
+        stack.
       </p>
-      <ul class="creds">
+      <ul class="creds reveal">
         <li>Microsoft Certified: Azure Data Engineer Associate</li>
         <li>Databricks Certified Data Engineer Associate</li>
         <li>AWS Certified Cloud Practitioner</li>
         <li>Google Data Analytics</li>
       </ul>
-      <p class="stack">
-        <strong>Stack:</strong> Apache Iceberg · Spark / Databricks · Kafka ·
-        Azure · AWS · Python · SQL · Power BI / Tableau · Claude API
+      <p class="stack reveal">
+        <strong>Stack:</strong> Apache Iceberg · Delta Lake · Spark / Databricks · Kafka · Azure
+        (ADF, Synapse, Stream Analytics, ADLS gen2) · AWS · Python · SQL · Power BI · Claude API
       </p>
     </section>
   </main>
@@ -156,11 +296,9 @@
     <p>© <span id="year">2026</span> Feodor Fernando ·
       <a href="https://www.linkedin.com/in/feodorfernando/" target="_blank" rel="noopener">LinkedIn</a>
     </p>
-    <p class="muted">Built as a code-first portfolio. Source in this repository.</p>
+    <p class="muted">Code-first portfolio · built with hand-written HTML/CSS/SVG · source in this repository.</p>
   </footer>
 
-  <script>
-    document.getElementById('year').textContent = new Date().getFullYear();
-  </script>
+  <script src="main.js"></script>
 </body>
 </html>

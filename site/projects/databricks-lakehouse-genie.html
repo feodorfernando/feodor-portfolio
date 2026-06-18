@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Databricks Lakehouse + Genie — Feodor Fernando</title>
+<meta name="description" content="A Delta Lake medallion pipeline on Databricks topped with a Genie-ready semantic layer for accurate natural-language analytics." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body>
+<div class="topbar"><div class="topbar-inner">
+  <a class="back" href="../../index.html">← Portfolio</a>
+  <span class="kind">Project · 06 · New</span>
+</div></div>
+
+<article class="wrap">
+  <p class="eyebrow">Databricks · AI-BI</p>
+  <h1>🧱 Databricks Lakehouse + Genie Analytics</h1>
+  <p class="lede">A Delta Lake medallion pipeline (bronze → silver → gold) on Databricks, topped
+  with a Genie-ready semantic layer so business users can ask questions in plain English and get
+  correct SQL.</p>
+  <div class="meta">
+    <span>Databricks</span><span class="dot">•</span><span>Delta Lake</span><span class="dot">•</span>
+    <span>Genie / AI-BI</span>
+  </div>
+
+  <div class="actions">
+    <a class="btn primary" href="https://github.com/feodorfernando/feodor-portfolio/tree/main/projects/06-databricks-lakehouse-genie" target="_blank" rel="noopener">View code on GitHub ↗</a>
+  </div>
+
+  <section class="reveal">
+  <h2>What it is</h2>
+  <p>A complete Databricks lakehouse: Auto Loader incrementally ingests raw files to a Delta
+  bronze table; a MERGE-based silver transform cleans and deduplicates; gold builds BI-ready
+  aggregates. The differentiator is the <strong>Genie semantic layer</strong> — business-language
+  column comments and a <strong>certified metric view</strong> — which is the single biggest lever
+  on natural-language-to-SQL accuracy.</p>
+  </section>
+
+  <section class="reveal">
+  <h2>Design &amp; architecture</h2>
+  <svg class="diagram" viewBox="0 0 840 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Databricks medallion + Genie">
+    <defs><linearGradient id="gd" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#38bdf8"/><stop offset="1" stop-color="#22d3a6"/></linearGradient></defs>
+    <line class="flow" x1="150" y1="60" x2="225" y2="60" stroke="url(#gd)" stroke-width="3"/>
+    <line class="flow" x1="345" y1="60" x2="420" y2="60" stroke="url(#gd)" stroke-width="3"/>
+    <line class="flow" x1="540" y1="60" x2="615" y2="60" stroke="url(#gd)" stroke-width="3"/>
+    <line class="flow" x1="690" y1="85" x2="690" y2="145" stroke="url(#gd)" stroke-width="3"/>
+
+    <rect x="20" y="38" width="130" height="44" rx="9" fill="#141b2c" stroke="#233048"/>
+    <text x="85" y="60" text-anchor="middle" class="node-label">ADLS raw</text>
+    <text x="85" y="76" text-anchor="middle" class="node-label">Auto Loader</text>
+
+    <rect x="225" y="38" width="120" height="44" rx="9" fill="#141b2c" stroke="#233048"/>
+    <text x="285" y="65" text-anchor="middle" class="node-title">bronze</text>
+
+    <rect x="420" y="38" width="120" height="44" rx="9" fill="#141b2c" stroke="#38bdf8"/>
+    <text x="480" y="60" text-anchor="middle" class="node-title">silver</text>
+    <text x="480" y="76" text-anchor="middle" class="node-label">MERGE · ZORDER</text>
+
+    <rect x="615" y="38" width="150" height="44" rx="9" fill="#141b2c" stroke="#22d3a6"/>
+    <text x="690" y="60" text-anchor="middle" class="node-title">gold + metrics</text>
+    <text x="690" y="76" text-anchor="middle" class="node-label">comments · views</text>
+
+    <g class="pulse"><rect x="600" y="145" width="180" height="56" rx="9" fill="#141b2c" stroke="#22d3a6"/></g>
+    <text x="690" y="170" text-anchor="middle" class="node-title">Databricks Genie</text>
+    <text x="690" y="188" text-anchor="middle" class="node-label">"revenue last week?" → SQL</text>
+  </svg>
+  </section>
+
+  <section class="reveal">
+  <h2>How I built it</h2>
+  <ul>
+    <li><strong>Auto Loader</strong> incremental ingest with schema evolution + checkpoints;
+    <code>trigger(availableNow=True)</code> runs batch-style on new files only.</li>
+    <li><strong>Silver MERGE</strong>: type casting, quality filters, latest-per-key upsert
+    (idempotent), then <code>OPTIMIZE … ZORDER</code> for read performance.</li>
+    <li><strong>Gold + semantic layer</strong>: annotate every column in business language and
+    publish a <strong>certified metric view</strong> so Genie answers from curated logic instead
+    of guessing — the highest-ROI step for NL-to-SQL accuracy.</li>
+  </ul>
+  </section>
+
+  <section class="reveal">
+  <h2>Tech stack</h2>
+  <div class="chips">
+    <span>Databricks</span><span>Delta Lake</span><span>Auto Loader</span>
+    <span>Databricks Genie / AI-BI</span><span>Spark SQL</span><span>Unity Catalog</span><span>Python</span>
+  </div>
+  </section>
+
+  <section class="reveal">
+  <h2>Details &amp; key files</h2>
+  <table>
+    <thead><tr><th>File</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><code>notebooks/01_bronze_autoloader.py</code></td><td>Auto Loader incremental ingest → Delta bronze</td></tr>
+      <tr><td><code>notebooks/02_silver_transform.py</code></td><td>clean/dedup + MERGE upsert + OPTIMIZE/ZORDER</td></tr>
+      <tr><td><code>notebooks/03_gold_genie_semantic.sql</code></td><td>gold aggregates + Genie semantic metadata &amp; certified metrics</td></tr>
+    </tbody>
+  </table>
+  </section>
+
+  <div class="actions">
+    <a class="btn primary" href="https://github.com/feodorfernando/feodor-portfolio/tree/main/projects/06-databricks-lakehouse-genie" target="_blank" rel="noopener">View code on GitHub ↗</a>
+    <a class="btn" href="../research/databricks-genie-improvement.html">Related paper: Improving Databricks Genie →</a>
+  </div>
+</article>
+<script src="../assets/site.js"></script>
+</body>
+</html>

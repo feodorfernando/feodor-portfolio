@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AI-Augmented Data Quality &amp; Observability — Feodor Fernando</title>
+<meta name="description" content="Using LLMs to propose and triage data quality rules while keeping enforcement deterministic — plus the pillars of data observability." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body>
+<div class="topbar"><div class="topbar-inner">
+  <a class="back" href="../../index.html">← Portfolio</a>
+  <span class="kind">Research Paper · 05</span>
+</div></div>
+
+<article class="wrap">
+  <p class="eyebrow">Data Quality · Observability</p>
+  <h1>AI-Augmented Data Quality &amp; Observability</h1>
+  <p class="lede">LLMs are excellent at proposing what "good data" looks like and at triaging
+  noisy alerts — but enforcement must stay deterministic. A design for trustworthy,
+  AI-assisted data quality.</p>
+  <div class="meta">
+    <span>Feodor Fernando</span><span class="dot">•</span>
+    <span>Reliability Research</span><span class="dot">•</span>
+    <span>Rev. 2026-06</span>
+  </div>
+
+  <section class="reveal">
+  <h2>1. The two halves of data quality</h2>
+  <p>Data quality splits into <strong>defining</strong> expectations and <strong>enforcing</strong>
+  them. Defining is judgement-heavy ("an <code>age</code> of 199 is implausible"; "this column
+  should look like an email") — a great fit for an LLM. Enforcing must be exact and
+  reproducible — a job for plain code. Conflating the two is the central mistake.</p>
+  </section>
+
+  <section class="reveal">
+  <h2>2. The six dimensions</h2>
+  <table>
+    <thead><tr><th>Dimension</th><th>Question it answers</th></tr></thead>
+    <tbody>
+      <tr><td>Completeness</td><td>Are required fields present / non-null?</td></tr>
+      <tr><td>Validity</td><td>Do values conform to type, range, format, allowed set?</td></tr>
+      <tr><td>Uniqueness</td><td>Are keys unique; any duplicates?</td></tr>
+      <tr><td>Consistency</td><td>Do related fields agree (cross-column, cross-table)?</td></tr>
+      <tr><td>Timeliness</td><td>Is data fresh within its SLA?</td></tr>
+      <tr><td>Accuracy</td><td>Does it match reality / a source of truth?</td></tr>
+    </tbody>
+  </table>
+  </section>
+
+  <section class="reveal">
+  <h2>3. Where the LLM adds value</h2>
+  <ul>
+    <li><strong>Rule proposal from a profile.</strong> Feed column stats + sample rows; the
+    model proposes typed expectations (not_null, range, regex, allowed-set) — bootstrapping
+    coverage far faster than hand-writing rules.</li>
+    <li><strong>Semantic checks.</strong> Catch errors a range check can't: a "country" value of
+    <code>XX</code>, a product name in the email field, a free-text status that contradicts a
+    numeric flag.</li>
+    <li><strong>Alert triage.</strong> Cluster and summarize a flood of failures into a few
+    root causes ("all failures are the new ingestion source's date format").</li>
+    <li><strong>Incident narratives.</strong> Turn a failed check + lineage into a readable
+    summary for the on-call engineer.</li>
+  </ul>
+  </section>
+
+  <section class="reveal">
+  <h2>4. The non-negotiable: propose, then enforce</h2>
+  <pre><code>column profile ──► LLM (tool-use) ──► typed rules JSON
+                                          │
+                                          ▼
+                      deterministic engine (pandas / Spark / SQL)
+                                          │
+                                          ▼
+                                 PASS / FAIL + violation rows</code></pre>
+  <p>The model only ever emits <em>rules</em>; it never declares data "good". A hallucinated
+  rule is visible in code review; it cannot silently pass bad data. This is the architecture of
+  the companion <em>LLM Data Quality Agent</em> project — Claude proposes via tool-use, pandas
+  enforces.</p>
+  </section>
+
+  <section class="reveal">
+  <h2>5. From quality checks to observability</h2>
+  <p>Point-in-time checks catch known problems; observability catches the unknown. The five
+  pillars:</p>
+  <ul>
+    <li><strong>Freshness</strong> — when did this table last update vs expected?</li>
+    <li><strong>Volume</strong> — did row counts move within normal bounds?</li>
+    <li><strong>Schema</strong> — did columns/types change unexpectedly?</li>
+    <li><strong>Distribution</strong> — did value distributions drift (null rate, mean, cardinality)?</li>
+    <li><strong>Lineage</strong> — what upstream change explains a downstream anomaly?</li>
+  </ul>
+  <p>LLMs help here by <em>explaining</em> anomalies across these signals, not by deciding
+  thresholds — statistical baselines decide; the model narrates and correlates.</p>
+  </section>
+
+  <section class="reveal">
+  <h2>6. Operationalizing</h2>
+  <ul>
+    <li>Run quality checks as a <strong>CI/orchestration gate</strong> (exit non-zero on
+    failure) so bad data fails the pipeline, not the dashboard.</li>
+    <li>Route violations to a <strong>dead-letter table</strong> + alert, not silent drops.</li>
+    <li>Version rules and prompts; treat them as code with review.</li>
+    <li>Keep an <strong>eval set</strong> for the LLM proposal step so model changes don't
+    quietly regress rule quality.</li>
+  </ul>
+  </section>
+
+  <section class="reveal">
+  <h2>7. Takeaways</h2>
+  <ul>
+    <li>LLMs define and triage; deterministic code enforces.</li>
+    <li>Cover the six dimensions; graduate from checks to five-pillar observability.</li>
+    <li>Gate pipelines on quality; never let probabilistic output be the final verdict.</li>
+  </ul>
+  </section>
+
+  <div class="actions">
+    <a class="btn primary" href="../../index.html#research">← All research</a>
+    <a class="btn" href="../projects/llm-data-quality.html">Related project: LLM Data Quality Agent →</a>
+  </div>
+</article>
+<script src="../assets/site.js"></script>
+</body>
+</html>

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Iceberg Streaming Lakehouse — Feodor Fernando</title>
+<meta name="description" content="Real-time Kafka to Apache Iceberg ingestion with merge-on-read upserts, late-data correction, and maintenance." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body>
+<div class="topbar"><div class="topbar-inner">
+  <a class="back" href="../../index.html">← Portfolio</a>
+  <span class="kind">Project · 01</span>
+</div></div>
+
+<article class="wrap">
+  <p class="eyebrow">Streaming · Lakehouse</p>
+  <h1>🧊 Iceberg Streaming Lakehouse</h1>
+  <p class="lede">Real-time Kafka → Apache Iceberg ingestion with merge-on-read upserts,
+  late-data correction, and the maintenance jobs that keep a streaming table healthy.</p>
+  <div class="meta">
+    <span>Spark Structured Streaming</span><span class="dot">•</span>
+    <span>Apache Iceberg</span><span class="dot">•</span><span>Kafka</span>
+  </div>
+
+  <div class="actions">
+    <a class="btn primary" href="https://github.com/feodorfernando/feodor-portfolio/tree/main/projects/01-iceberg-streaming-lakehouse" target="_blank" rel="noopener">View code on GitHub ↗</a>
+    <a class="btn" href="https://github.com/feodorfernando/feodor-portfolio/blob/main/projects/01-iceberg-streaming-lakehouse/docs/iceberg-streaming-research.md" target="_blank" rel="noopener">Read the research note ↗</a>
+  </div>
+
+  <section class="reveal">
+  <h2>What it is</h2>
+  <p>A working streaming pipeline that lands a Kafka event stream into Apache Iceberg. Raw
+  events are appended to a <strong>bronze</strong> table; a deduplicated, late-data-corrected
+  copy is upserted into a <strong>silver</strong> table via idempotent <code>MERGE</code> using
+  merge-on-read so each micro-batch commit stays cheap. It ships with the maintenance jobs
+  (compaction, snapshot expiry, orphan cleanup) that make streaming Iceberg viable in
+  production — and a deep research note on Iceberg internals.</p>
+  </section>
+
+  <section class="reveal">
+  <h2>Design &amp; architecture</h2>
+  <svg class="diagram" viewBox="0 0 820 260" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Streaming architecture diagram">
+    <defs>
+      <linearGradient id="g1" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stop-color="#38bdf8"/><stop offset="1" stop-color="#22d3a6"/>
+      </linearGradient>
+    </defs>
+    <!-- connectors -->
+    <line class="flow" x1="150" y1="70" x2="250" y2="70" stroke="url(#g1)" stroke-width="3"/>
+    <line class="flow" x1="430" y1="70" x2="540" y2="55" stroke="url(#g1)" stroke-width="3"/>
+    <line class="flow" x1="430" y1="70" x2="540" y2="120" stroke="url(#g1)" stroke-width="3"/>
+    <line class="flow" x1="640" y1="120" x2="640" y2="180" stroke="url(#g1)" stroke-width="3"/>
+    <!-- nodes -->
+    <g class="pulse"><rect x="30" y="45" width="120" height="50" rx="10" fill="#141b2c" stroke="#233048"/></g>
+    <text x="90" y="68" text-anchor="middle" class="node-title">Kafka</text>
+    <text x="90" y="84" text-anchor="middle" class="node-label">events topic</text>
+
+    <rect x="250" y="40" width="180" height="60" rx="10" fill="#141b2c" stroke="#38bdf8"/>
+    <text x="340" y="64" text-anchor="middle" class="node-title">Spark Streaming</text>
+    <text x="340" y="82" text-anchor="middle" class="node-label">foreachBatch · dedup</text>
+
+    <rect x="540" y="32" width="160" height="46" rx="10" fill="#141b2c" stroke="#233048"/>
+    <text x="620" y="60" text-anchor="middle" class="node-label">bronze — append</text>
+
+    <rect x="540" y="98" width="160" height="46" rx="10" fill="#141b2c" stroke="#22d3a6"/>
+    <text x="620" y="120" text-anchor="middle" class="node-title">silver</text>
+    <text x="620" y="136" text-anchor="middle" class="node-label">MERGE · merge-on-read</text>
+
+    <rect x="520" y="180" width="240" height="50" rx="10" fill="#0a0e16" stroke="#233048" stroke-dasharray="4 4"/>
+    <text x="640" y="200" text-anchor="middle" class="node-label">maintenance (out-of-band):</text>
+    <text x="640" y="217" text-anchor="middle" class="node-label">compact · expire · remove orphans</text>
+  </svg>
+  </section>
+
+  <section class="reveal">
+  <h2>How I built it</h2>
+  <ul>
+    <li><strong>Bronze/silver split</strong> — append raw cheaply, then MERGE deduped rows so
+    corrections and replays are idempotent.</li>
+    <li><strong>Merge-on-read</strong> tables (<code>write.*.mode = merge-on-read</code>) so
+    per-micro-batch upserts write small delete files instead of rewriting whole files.</li>
+    <li><strong>Late/out-of-order handling</strong> via
+    <code>MERGE … WHEN MATCHED AND s.event_time &gt; t.event_time</code>.</li>
+    <li><strong>Exactly-once-ish</strong> from Spark checkpoints + idempotent MERGE; failed
+    batches leave orphans that maintenance cleans.</li>
+    <li><strong>Maintenance job</strong> runs compaction, position-delete rewrite, snapshot
+    expiry, and orphan removal out-of-band so it never blocks ingestion.</li>
+  </ul>
+  </section>
+
+  <section class="reveal">
+  <h2>Tech stack</h2>
+  <div class="chips">
+    <span>Apache Iceberg</span><span>Spark Structured Streaming</span><span>Kafka</span>
+    <span>Parquet</span><span>Python</span><span>Docker</span>
+  </div>
+  </section>
+
+  <section class="reveal">
+  <h2>Details &amp; key files</h2>
+  <table>
+    <thead><tr><th>File</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><code>src/streaming_ingest.py</code></td><td>Kafka → bronze append + silver MERGE</td></tr>
+      <tr><td><code>src/iceberg_maintenance.py</code></td><td>compaction / expire / orphan cleanup</td></tr>
+      <tr><td><code>src/produce_events.py</code></td><td>synthetic event generator (late/dupe events)</td></tr>
+      <tr><td><code>docker-compose.yml</code></td><td>local single-node Kafka (KRaft)</td></tr>
+      <tr><td><code>docs/iceberg-streaming-research.md</code></td><td>deep dive: metadata, COW vs MOR, small files</td></tr>
+    </tbody>
+  </table>
+  </section>
+
+  <div class="actions">
+    <a class="btn primary" href="https://github.com/feodorfernando/feodor-portfolio/tree/main/projects/01-iceberg-streaming-lakehouse" target="_blank" rel="noopener">View code on GitHub ↗</a>
+    <a class="btn" href="../research/realtime-lakehouse.html">Related paper: Real-Time Lakehouse →</a>
+  </div>
+</article>
+<script src="../assets/site.js"></script>
+</body>
+</html>

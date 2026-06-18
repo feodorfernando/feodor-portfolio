@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Azure End-to-End Data Pipeline — Feodor Fernando</title>
+<meta name="description" content="A production-shaped Azure data platform: Event Hub, Stream Analytics, Data Factory, ADLS gen2, Synapse, Databricks, Power BI — hot and cold paths." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body>
+<div class="topbar"><div class="topbar-inner">
+  <a class="back" href="../../index.html">← Portfolio</a>
+  <span class="kind">Project · 05 · New</span>
+</div></div>
+
+<article class="wrap">
+  <p class="eyebrow">Azure · Data Engineering</p>
+  <h1>☁️ Azure End-to-End Data Pipeline</h1>
+  <p class="lede">A production-shaped Azure platform spanning operational sources → ingestion/ETL
+  → analytical storage &amp; processing → BI, with both a real-time (hot) path and a batch (cold)
+  path.</p>
+  <div class="meta">
+    <span>Azure Data Factory</span><span class="dot">•</span><span>Stream Analytics</span><span class="dot">•</span>
+    <span>Synapse</span><span class="dot">•</span><span>Power BI</span>
+  </div>
+
+  <div class="actions">
+    <a class="btn primary" href="https://github.com/feodorfernando/feodor-portfolio/tree/main/projects/05-azure-etl-pipeline" target="_blank" rel="noopener">View code on GitHub ↗</a>
+  </div>
+
+  <section class="reveal">
+  <h2>What it is</h2>
+  <p>An end-to-end Azure data pipeline modeled on a real enterprise analytics platform. Streaming
+  telemetry flows through Event Hub → Stream Analytics for sub-minute dashboards; operational
+  stores (Azure SQL, Cosmos DB, Dataverse) are incrementally copied by Azure Data Factory into
+  ADLS gen2, transformed in Databricks (medallion), and served through Synapse serverless to
+  Power BI. It includes the actual Stream Analytics queries, ADF pipeline definition, and Synapse
+  external-table SQL.</p>
+  </section>
+
+  <section class="reveal">
+  <h2>Design &amp; architecture</h2>
+  <svg class="diagram" viewBox="0 0 860 330" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Azure pipeline architecture">
+    <defs><linearGradient id="ga" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#38bdf8"/><stop offset="1" stop-color="#22d3a6"/></linearGradient></defs>
+
+    <!-- column headers -->
+    <text x="95" y="24" text-anchor="middle" class="node-title">Operational</text>
+    <text x="320" y="24" text-anchor="middle" class="node-title">Ingestion / ETL</text>
+    <text x="560" y="24" text-anchor="middle" class="node-title">Storage &amp; Processing</text>
+    <text x="790" y="24" text-anchor="middle" class="node-title">Serving</text>
+
+    <!-- hot path -->
+    <line class="flow" x1="170" y1="70" x2="245" y2="70" stroke="url(#ga)" stroke-width="3"/>
+    <line class="flow" x1="395" y1="70" x2="475" y2="70" stroke="url(#ga)" stroke-width="3"/>
+    <line class="flow" x1="675" y1="70" x2="730" y2="70" stroke="url(#ga)" stroke-width="3"/>
+    <!-- cold path -->
+    <line class="flow" x1="170" y1="200" x2="245" y2="200" stroke="url(#ga)" stroke-width="3"/>
+    <line class="flow" x1="395" y1="200" x2="475" y2="200" stroke="url(#ga)" stroke-width="3"/>
+    <line class="flow" x1="675" y1="200" x2="730" y2="200" stroke="url(#ga)" stroke-width="3"/>
+
+    <!-- nodes: operational -->
+    <g class="pulse"><rect x="20" y="48" width="150" height="44" rx="9" fill="#141b2c" stroke="#233048"/></g>
+    <text x="95" y="75" text-anchor="middle" class="node-label">Event Hub (telemetry)</text>
+    <rect x="20" y="155" width="150" height="90" rx="9" fill="#141b2c" stroke="#233048"/>
+    <text x="95" y="185" text-anchor="middle" class="node-label">Azure SQL</text>
+    <text x="95" y="205" text-anchor="middle" class="node-label">Cosmos DB</text>
+    <text x="95" y="225" text-anchor="middle" class="node-label">Dataverse</text>
+
+    <!-- ingestion -->
+    <rect x="245" y="46" width="150" height="48" rx="9" fill="#141b2c" stroke="#38bdf8"/>
+    <text x="320" y="68" text-anchor="middle" class="node-title">Stream Analytics</text>
+    <text x="320" y="84" text-anchor="middle" class="node-label">windowed agg</text>
+    <rect x="245" y="176" width="150" height="48" rx="9" fill="#141b2c" stroke="#38bdf8"/>
+    <text x="320" y="198" text-anchor="middle" class="node-title">Data Factory</text>
+    <text x="320" y="214" text-anchor="middle" class="node-label">incremental copy</text>
+
+    <!-- storage -->
+    <rect x="475" y="46" width="200" height="48" rx="9" fill="#141b2c" stroke="#233048"/>
+    <text x="575" y="68" text-anchor="middle" class="node-label">ADLS gen2 (raw/cold)</text>
+    <text x="575" y="84" text-anchor="middle" class="node-label">+ Power BI live tiles</text>
+    <g class="pulse"><rect x="475" y="155" width="200" height="90" rx="9" fill="#141b2c" stroke="#22d3a6"/></g>
+    <text x="575" y="183" text-anchor="middle" class="node-title">Databricks (medallion)</text>
+    <text x="575" y="203" text-anchor="middle" class="node-label">bronze · silver · gold</text>
+    <text x="575" y="223" text-anchor="middle" class="node-label">→ Synapse serverless</text>
+
+    <!-- serving -->
+    <g class="pulse"><rect x="730" y="120" width="110" height="60" rx="9" fill="#141b2c" stroke="#22d3a6"/></g>
+    <text x="785" y="148" text-anchor="middle" class="node-title">Power BI</text>
+    <text x="785" y="166" text-anchor="middle" class="node-label">dashboards</text>
+    <line class="flow" x1="785" y1="92" x2="785" y2="120" stroke="url(#ga)" stroke-width="3"/>
+    <line class="flow" x1="785" y1="200" x2="785" y2="180" stroke="url(#ga)" stroke-width="3"/>
+  </svg>
+  </section>
+
+  <section class="reveal">
+  <h2>How I built it</h2>
+  <ul>
+    <li><strong>Latency-driven ingestion split</strong>: streaming telemetry via Stream
+    Analytics (sub-minute); slowly-changing operational tables via ADF incremental copy on a
+    <code>modified_at</code> watermark — one tool per job.</li>
+    <li><strong>Hot path</strong>: Event Hub → Stream Analytics tumbling-window aggregates →
+    Power BI live tiles, plus an anomaly path to a Service Bus alert queue.</li>
+    <li><strong>Cold path</strong>: ADF copy → ADLS gen2 bronze → ADF triggers a Databricks
+    medallion transform → gold Parquet.</li>
+    <li><strong>Serverless serving</strong>: Synapse serverless SQL external tables/views over
+    gold — no idle dedicated pool cost; Power BI queries the views.</li>
+  </ul>
+  </section>
+
+  <section class="reveal">
+  <h2>Tech stack</h2>
+  <div class="chips">
+    <span>Azure Event Hub</span><span>Stream Analytics</span><span>Azure Data Factory</span>
+    <span>ADLS gen2</span><span>Synapse</span><span>Databricks</span><span>Cosmos DB</span><span>Power BI</span>
+  </div>
+  </section>
+
+  <section class="reveal">
+  <h2>Details &amp; key files</h2>
+  <table>
+    <thead><tr><th>File</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><code>stream_analytics/realtime_query.sql</code></td><td>hot aggregates + cold raw landing + anomaly alerts</td></tr>
+      <tr><td><code>pipeline/adf_copy_pipeline.json</code></td><td>incremental copy from Azure SQL + Cosmos → bronze, then trigger Databricks</td></tr>
+      <tr><td><code>synapse/create_external_tables.sql</code></td><td>Synapse serverless external tables + views for Power BI</td></tr>
+    </tbody>
+  </table>
+  </section>
+
+  <div class="actions">
+    <a class="btn primary" href="https://github.com/feodorfernando/feodor-portfolio/tree/main/projects/05-azure-etl-pipeline" target="_blank" rel="noopener">View code on GitHub ↗</a>
+    <a class="btn" href="../research/database-performance.html">Related paper: Database Performance →</a>
+  </div>
+</article>
+<script src="../assets/site.js"></script>
+</body>
+</html>

@@ -1,60 +1,66 @@
 # Feodor Fernando — Data &amp; AI Engineering Portfolio
 
 > Data Engineer · Cloud Wrangler · Chennai, India
-> [LinkedIn](https://www.linkedin.com/in/feodorfernando/)
+> [LinkedIn](https://www.linkedin.com/in/feodorfernando/) ·
+> 🌐 Live site: **https://feodorfernando.github.io/feodor-portfolio/**
 
-A code-first portfolio at the intersection of **data engineering**, **streaming
-lakehouses**, and **generative AI**. Each project ships runnable code plus a
-written research / design note.
+An animated, code-first portfolio at the intersection of **data engineering**, **streaming
+lakehouses**, **Azure data platforms**, and **generative AI**. Every project and research
+paper has its own page you can open and read in the browser — overview, design diagram,
+tech stack, and details.
 
-🌐 **Portfolio site:** open [`index.html`](index.html) locally, or publish via
-GitHub Pages (see below).
+## 🚀 Projects (6)
 
-## Projects
-
-| # | Project | What it is | Tech |
+| # | Project | What it is | Page · Code |
 |---|---------|-----------|------|
-| 01 | [Iceberg Streaming Lakehouse](projects/01-iceberg-streaming-lakehouse/) | Kafka → Iceberg streaming ingestion (merge-on-read upserts, late-data correction, maintenance) + research note on Iceberg internals | Iceberg, Spark Streaming, Kafka |
-| 02 | [GenAI Catalog Assistant (RAG)](projects/02-genai-rag-lakehouse/) | Grounded RAG over a lakehouse catalog — schemas, lineage, PII — with table citations | Claude API, RAG, embeddings |
-| 03 | [LLM Data Quality Agent](projects/03-llm-data-quality/) | Claude proposes typed validation rules (tool-use); pandas enforces them deterministically. CI-gate ready | Claude tool-use, pandas |
-| 04 | [Real-Time CDC → Iceberg](projects/04-realtime-cdc-iceberg/) | Debezium CDC mirrored into Iceberg with LSN-guarded idempotent MERGEs + design note | Debezium, Iceberg, Spark Streaming |
+| 01 | Iceberg Streaming Lakehouse | Kafka → Iceberg streaming (MOR upserts, late-data, maintenance) + research note | [page](site/projects/iceberg-streaming.html) · [code](projects/01-iceberg-streaming-lakehouse/) |
+| 02 | GenAI Catalog Assistant (RAG) | Grounded RAG over a lakehouse catalog with citations (Claude) | [page](site/projects/genai-rag.html) · [code](projects/02-genai-rag-lakehouse/) |
+| 03 | LLM Data Quality Agent | Claude proposes typed rules (tool-use); pandas enforces them | [page](site/projects/llm-data-quality.html) · [code](projects/03-llm-data-quality/) |
+| 04 | Real-Time CDC → Iceberg | Debezium CDC mirrored into Iceberg (idempotent MERGE) + design note | [page](site/projects/cdc-iceberg.html) · [code](projects/04-realtime-cdc-iceberg/) |
+| 05 | **Azure End-to-End Pipeline** | Event Hub/SQL/Cosmos → Stream Analytics/ADF → ADLS/Databricks/Synapse → Power BI | [page](site/projects/azure-etl-pipeline.html) · [code](projects/05-azure-etl-pipeline/) |
+| 06 | **Databricks Lakehouse + Genie** | Delta medallion + Genie-ready semantic layer for NL analytics | [page](site/projects/databricks-lakehouse-genie.html) · [code](projects/06-databricks-lakehouse-genie/) |
 
-### Featured writing
-- [Streaming into Apache Iceberg: Architecture, Internals & Trade-offs](projects/01-iceberg-streaming-lakehouse/docs/iceberg-streaming-research.md)
-- [Real-Time CDC into the Lakehouse: A Design Note](projects/04-realtime-cdc-iceberg/docs/cdc-design.md)
+## 📄 Research papers (5)
+
+| # | Paper | Topic |
+|---|-------|-------|
+| 01 | [Integrating Generative AI into Production Data Pipelines](site/research/ai-in-data-pipelines.html) | Pipelines × AI |
+| 02 | [Improving Databricks Genie: Raising NL-to-SQL Accuracy](site/research/databricks-genie-improvement.html) | Databricks / AI-BI |
+| 03 | [Database Performance Improvement at Scale](site/research/database-performance.html) | Indexing, partitioning, tuning |
+| 04 | [Real-Time Lakehouse Architectures](site/research/realtime-lakehouse.html) | Streaming, CDC, table formats |
+| 05 | [AI-Augmented Data Quality &amp; Observability](site/research/data-quality-ai.html) | Quality & observability |
 
 ## Repository layout
 
 ```
 feodor-portfolio/
-├── index.html                 # portfolio landing page (GitHub Pages entrypoint)
-├── style.css
+├── index.html                 # animated portfolio landing (Pages entrypoint)
+├── style.css · main.js        # site styling + animations
+├── site/
+│   ├── projects/*.html        # 6 readable project pages (overview · design · stack · details)
+│   ├── research/*.html        # 5 readable research papers
+│   └── assets/                # shared CSS/JS for sub-pages
 ├── projects/
-│   ├── 01-iceberg-streaming-lakehouse/   # streaming ingest + maintenance + research
-│   ├── 02-genai-rag-lakehouse/           # RAG catalog assistant (Claude)
-│   ├── 03-llm-data-quality/              # LLM-proposed, deterministically-enforced DQ
-│   └── 04-realtime-cdc-iceberg/          # Debezium CDC → Iceberg + design note
+│   ├── 01-iceberg-streaming-lakehouse/
+│   ├── 02-genai-rag-lakehouse/
+│   ├── 03-llm-data-quality/
+│   ├── 04-realtime-cdc-iceberg/
+│   ├── 05-azure-etl-pipeline/          # ADF + Stream Analytics + Synapse
+│   └── 06-databricks-lakehouse-genie/  # Delta medallion notebooks + Genie semantic layer
 └── README.md
 ```
 
-Each project folder has its own README with run instructions and a
-`requirements.txt`.
+## Run the code
 
-## Publishing to GitHub Pages
+Each project folder has its own README with run instructions and (where relevant) a
+`requirements.txt`. Projects 05/06 are Azure/Databricks artifacts (ADF JSON, Stream Analytics
+SQL, Synapse SQL, Databricks notebooks).
 
-This repo is Pages-ready (`index.html` at the root, plus `.nojekyll`):
+## Publishing
 
-```bash
-# create the GitHub repo and push (requires the gh CLI, authenticated)
-gh repo create feodor-portfolio --public --source . --remote origin --push
-
-# enable Pages from the main branch root
-gh api -X POST repos/:owner/feodor-portfolio/pages \
-  -f "source[branch]=main" -f "source[path]=/" 2>/dev/null || \
-echo "Then: repo Settings → Pages → Branch: main, Folder: / (root)"
-```
-
-Your site will be served at `https://<username>.github.io/feodor-portfolio/`.
+Pages-ready (`index.html` at root + `.nojekyll`). Already deployed at
+`https://feodorfernando.github.io/feodor-portfolio/`. To update: `git push` — Pages rebuilds
+automatically.
 
 ## License
 
