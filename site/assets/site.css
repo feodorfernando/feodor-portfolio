@@ -10,6 +10,36 @@
   --accent-2: #22d3a6;
   --maxw: 860px;
 }
+:root[data-theme="light"] {
+  --bg: #f7f9fc;
+  --bg-soft: #eef2f8;
+  --card: #ffffff;
+  --border: #d9e1ee;
+  --text: #0f1828;
+  --muted: #51617d;
+  --accent: #0b84d6;
+  --accent-2: #0c9e78;
+}
+body, .topbar, .panel, pre, table, th, td, .chips span, .btn {
+  transition: background-color .3s ease, color .3s ease, border-color .3s ease;
+}
+/* theme toggle */
+.theme-btn {
+  background: var(--bg-soft); border: 1px solid var(--border); color: var(--text);
+  width: 34px; height: 34px; border-radius: 9px; cursor: pointer; font-size: .95rem;
+  display: inline-flex; align-items: center; justify-content: center; line-height: 1;
+}
+.theme-btn:hover { border-color: var(--accent); }
+.topbar-right { display: flex; align-items: center; gap: 1rem; }
+/* diagrams render on a fixed dark stage so they read well in both themes */
+.diagram {
+  background: #0e1626; border: 1px solid #233048; border-radius: 12px; padding: 16px;
+}
+:root[data-theme="light"] p, :root[data-theme="light"] li,
+:root[data-theme="light"] .wrap > p, :root[data-theme="light"] .wrap li { color: #25324a; }
+:root[data-theme="light"] td { color: #33425d; }
+:root[data-theme="light"] .topbar { background: rgba(247,249,252,.85); }
+:root[data-theme="light"] blockquote { color: #51617d; }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
 body {

@@ -1,10 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script>
+(function(){function a(t){document.documentElement.setAttribute('data-theme',t);}
+var s;try{s=localStorage.getItem('theme');}catch(e){}
+var m=window.matchMedia&&matchMedia('(prefers-color-scheme: light)').matches;
+a(s||(m?'light':'dark'));
+window.toggleTheme=function(){var c=document.documentElement.getAttribute('data-theme');var n=c==='light'?'dark':'light';a(n);try{localStorage.setItem('theme',n);}catch(e){}var b=document.getElementById('theme-toggle');if(b)b.textContent=n==='light'?'\u{1F319}':'☀️';};
+document.addEventListener('DOMContentLoaded',function(){var b=document.getElementById('theme-toggle');if(b)b.textContent=document.documentElement.getAttribute('data-theme')==='light'?'\u{1F319}':'☀️';});
+if(!s&&window.matchMedia){try{matchMedia('(prefers-color-scheme: light)').addEventListener('change',function(e){var n=e.matches?'light':'dark';a(n);var b=document.getElementById('theme-toggle');if(b)b.textContent=n==='light'?'\u{1F319}':'☀️';});}catch(e){}}
+})();
+</script>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Database Performance Improvement at Scale — Feodor Fernando</title>
-<meta name="description" content="Indexing, partitioning, and query optimization techniques that move the needle on OLTP and analytical database performance." />
+<meta name="description" content="An industry-grade field guide to database performance: reading plans, indexing strategy, statistics, partitioning, SARGable SQL, and scaling beyond a single node — OLTP and analytical." />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="../assets/site.css" />
@@ -12,134 +22,206 @@
 <body>
 <div class="topbar"><div class="topbar-inner">
   <a class="back" href="../../index.html">← Portfolio</a>
-  <span class="kind">Research Paper · 03</span>
+  <div class="topbar-right">
+    <span class="kind">Research Paper · 03</span>
+    <button id="theme-toggle" class="theme-btn" onclick="toggleTheme()" aria-label="Toggle light/dark theme">☀️</button>
+  </div>
 </div></div>
 
 <article class="wrap">
   <p class="eyebrow">Databases · Performance</p>
   <h1>Database Performance Improvement: Indexing, Partitioning &amp; Query Optimization at Scale</h1>
-  <p class="lede">A field guide to the techniques that actually move latency — starting from
-  "read the plan" and ending at partitioning, with the trade-offs each one buys.</p>
+  <p class="lede">A methodical field guide to the techniques that actually move latency — from
+  "read the plan" through indexing, statistics, and partitioning, to scaling beyond a single node
+  — with the trade-off each one buys.</p>
   <div class="meta">
     <span>Feodor Fernando</span><span class="dot">•</span>
     <span>Database Engineering Research</span><span class="dot">•</span>
-    <span>Rev. 2026-06</span>
+    <span>~13 min read</span><span class="dot">•</span><span>Rev. 2026-06</span>
+  </div>
+
+  <div class="panel">
+    <h3>Abstract</h3>
+    <p>Most database performance work fails because it starts from intuition instead of evidence.
+    This paper lays out a disciplined optimisation loop — measure with the execution plan, fix the
+    cheapest high-impact cause first, re-measure — and then surveys the techniques in the order you
+    should reach for them: fresh statistics, the right indexes, SARGable query shapes, and only
+    then partitioning. It closes with the architectural decisions (read replicas, caching, and
+    separating OLTP from analytics) that matter once single-node tuning is exhausted, and maps the
+    same principles onto the columnar lakehouse.</p>
   </div>
 
   <section class="reveal">
-  <h2>1. Start with the plan, not the guess</h2>
-  <p>The first rule of tuning: never optimize from intuition. Read the execution plan.
-  <code>EXPLAIN (ANALYZE, BUFFERS)</code> (Postgres) or the actual execution plan (SQL Server /
-  Synapse) tells you the truth — where the rows are, where the time goes, and whether the
-  optimizer chose a scan, seek, or hash join.</p>
+  <h2>1. The optimisation loop</h2>
+  <p>Performance tuning is a loop, not a guess: <strong>reproduce → read the plan → form one
+  hypothesis → change one thing → re-measure</strong>. Changing several things at once means you
+  never learn which one worked. Keep a before/after latency number for every change; "it feels
+  faster" is not a result.</p>
+  <svg class="diagram" viewBox="0 0 860 170" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Optimisation loop">
+    <defs><linearGradient id="f" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#38bdf8"/><stop offset="1" stop-color="#22d3a6"/></linearGradient></defs>
+    <line class="flow" x1="150" y1="80" x2="210" y2="80" stroke="url(#f)" stroke-width="3"/>
+    <line class="flow" x1="330" y1="80" x2="390" y2="80" stroke="url(#f)" stroke-width="3"/>
+    <line class="flow" x1="510" y1="80" x2="570" y2="80" stroke="url(#f)" stroke-width="3"/>
+    <line class="flow" x1="690" y1="80" x2="750" y2="80" stroke="url(#f)" stroke-width="3"/>
+    <rect x="20" y="58" width="130" height="44" rx="9" fill="#141b2c" stroke="#233048"/><text x="85" y="84" text-anchor="middle" class="node-label">reproduce</text>
+    <rect x="210" y="58" width="120" height="44" rx="9" fill="#141b2c" stroke="#38bdf8"/><text x="270" y="84" text-anchor="middle" class="node-label">read plan</text>
+    <rect x="390" y="58" width="120" height="44" rx="9" fill="#141b2c" stroke="#233048"/><text x="450" y="84" text-anchor="middle" class="node-label">change one</text>
+    <rect x="570" y="58" width="120" height="44" rx="9" fill="#141b2c" stroke="#22d3a6"/><text x="630" y="84" text-anchor="middle" class="node-label">re-measure</text>
+    <rect x="750" y="58" width="100" height="44" rx="9" fill="#141b2c" stroke="#233048"/><text x="800" y="84" text-anchor="middle" class="node-label">repeat</text>
+  </svg>
+  </section>
+
+  <section class="reveal">
+  <h2>2. Read the plan, not your assumptions</h2>
+  <p>The execution plan is the ground truth. <code>EXPLAIN (ANALYZE, BUFFERS)</code> in Postgres,
+  or the actual execution plan in SQL Server / Synapse, tells you where the rows are, where the
+  time goes, and what access method the optimiser chose.</p>
   <pre><code>EXPLAIN (ANALYZE, BUFFERS)
 SELECT region, sum(amount)
 FROM orders
 WHERE order_date >= '2026-01-01'
 GROUP BY region;</code></pre>
-  <p>Look for: <strong>Seq Scan on a big table</strong> (missing index?), <strong>rows estimate
-  vs actual</strong> wildly off (stale statistics), and <strong>spills to disk</strong> (work_mem
-  too small / bad join order).</p>
+  <p>Read it for four tells: a <strong>Seq Scan on a large table</strong> (missing or unused
+  index); <strong>estimated vs actual rows</strong> wildly diverging (stale statistics);
+  <strong>spills to disk</strong> in sorts/hashes (under-sized <code>work_mem</code> or a bad
+  join order); and the <strong>widest node</strong> in the tree (where your time actually goes —
+  optimise that, not the query you happened to suspect).</p>
   </section>
 
   <section class="reveal">
-  <h2>2. Indexing — the biggest single lever, with a cost</h2>
+  <h2>3. Statistics first (the cheapest fix)</h2>
+  <p>The optimiser's plan is only as good as its row estimates. A classic incident is a good plan
+  going bad overnight after a bulk load left statistics stale, so the optimiser now picks a nested
+  loop where a hash join is needed. Before touching indexes, refresh statistics
+  (<code>ANALYZE</code> / update statistics) and tune autovacuum/auto-stats thresholds on
+  high-churn tables. It is free and frequently sufficient.</p>
+  </section>
+
+  <section class="reveal">
+  <h2>4. Indexing — the biggest lever, with a cost</h2>
+  <table>
+    <thead><tr><th>Index type</th><th>Best for</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>B-tree</td><td>equality, range, ordering</td><td>the default workhorse</td></tr>
+      <tr><td>Composite</td><td>multi-column predicates</td><td>obeys left-prefix rule; order by selectivity/access</td></tr>
+      <tr><td>Covering (<code>INCLUDE</code>)</td><td>index-only scans</td><td>answer query from index, skip heap lookup</td></tr>
+      <tr><td>Partial / filtered</td><td>hot subset only</td><td>e.g. <code>WHERE status='active'</code>; small &amp; fast</td></tr>
+      <tr><td>Hash / GIN / GiST</td><td>equality / JSON / full-text / geo</td><td>specialised access paths</td></tr>
+    </tbody>
+  </table>
+  <p>The left-prefix rule is the most misunderstood: an index on <code>(a, b)</code> serves
+  <code>WHERE a=…</code> and <code>WHERE a=… AND b=…</code>, but <em>not</em> <code>WHERE b=…</code>
+  alone. Order composite columns by how queries actually filter.</p>
+  <blockquote>Every index speeds reads but slows writes and costs storage. Index for your real
+  read patterns; periodically audit and drop unused indexes.</blockquote>
+  </section>
+
+  <section class="reveal">
+  <h2>5. Write SQL the optimiser can help</h2>
   <ul>
-    <li><strong>B-tree</strong> for equality and range predicates and for ordering. The default,
-    the workhorse.</li>
-    <li><strong>Composite indexes</strong> obey the left-prefix rule: an index on
-    <code>(a, b)</code> serves <code>WHERE a=…</code> and <code>WHERE a=… AND b=…</code>, but not
-    <code>WHERE b=…</code> alone. Order columns by selectivity / access pattern.</li>
-    <li><strong>Covering indexes</strong> (<code>INCLUDE</code> columns) let a query be answered
-    from the index alone — no heap/table lookup.</li>
-    <li><strong>Partial / filtered indexes</strong> index only the hot subset
-    (<code>WHERE status = 'active'</code>), keeping the index small.</li>
+    <li><strong>SARGable predicates.</strong> <code>WHERE order_date &gt;= '2026-01-01'</code> uses
+    an index; <code>WHERE year(order_date) = 2026</code> wraps the column in a function and forces
+    a scan. Keep the indexed column bare on one side of the comparison.</li>
+    <li><strong>Avoid implicit casts.</strong> Comparing a <code>varchar</code> column to an
+    integer silently disables index use — a frequent, invisible performance bug.</li>
+    <li><strong>Select only needed columns.</strong> <code>SELECT *</code> defeats covering indexes
+    and inflates I/O and network.</li>
+    <li><strong>Set-based, not row-by-row.</strong> Replace N+1 patterns and correlated per-row
+    subqueries with joins or window functions.</li>
+    <li><strong>Filter early.</strong> Push predicates down before joins and aggregations so the
+    engine carries fewer rows through the plan.</li>
   </ul>
-  <blockquote>Every index speeds reads and slows writes (and costs storage). Index for your
-  read patterns; audit and drop unused indexes.</blockquote>
   </section>
 
   <section class="reveal">
-  <h2>3. Keep statistics fresh</h2>
-  <p>The optimizer's choices are only as good as its row estimates. Stale stats after a big
-  load are a classic cause of a good plan suddenly going bad. <code>ANALYZE</code> / update
-  statistics after bulk operations; tune autovacuum/auto-stats thresholds for high-churn tables.</p>
-  </section>
-
-  <section class="reveal">
-  <h2>4. Partitioning — for tables too big to index your way out of</h2>
-  <p>When a table reaches hundreds of millions of rows, partitioning lets the engine prune
-  whole partitions before scanning:</p>
+  <h2>6. Partitioning — for tables too big to index your way out of</h2>
+  <p>At hundreds of millions of rows, partitioning lets the engine prune whole partitions before
+  scanning anything.</p>
+  <svg class="diagram" viewBox="0 0 860 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Partition pruning">
+    <defs><linearGradient id="f2" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#38bdf8"/><stop offset="1" stop-color="#22d3a6"/></linearGradient></defs>
+    <text x="120" y="30" text-anchor="middle" class="node-title">query: order_date in May</text>
+    <line class="flow" x1="240" y1="95" x2="320" y2="95" stroke="url(#f2)" stroke-width="3"/>
+    <rect x="20" y="70" width="220" height="50" rx="9" fill="#141b2c" stroke="#38bdf8"/><text x="130" y="100" text-anchor="middle" class="node-label">planner: prune to May partition</text>
+    <!-- partitions -->
+    <rect x="340" y="50" width="90" height="40" rx="7" fill="#141b2c" stroke="#233048" opacity="0.4"/><text x="385" y="74" text-anchor="middle" class="node-label">Mar</text>
+    <rect x="440" y="50" width="90" height="40" rx="7" fill="#141b2c" stroke="#233048" opacity="0.4"/><text x="485" y="74" text-anchor="middle" class="node-label">Apr</text>
+    <g class="pulse"><rect x="540" y="50" width="90" height="40" rx="7" fill="#141b2c" stroke="#22d3a6"/></g><text x="585" y="74" text-anchor="middle" class="node-label">May ✓</text>
+    <rect x="640" y="50" width="90" height="40" rx="7" fill="#141b2c" stroke="#233048" opacity="0.4"/><text x="685" y="74" text-anchor="middle" class="node-label">Jun</text>
+    <text x="540" y="150" text-anchor="middle" class="node-label">only the May partition is scanned — others skipped entirely</text>
+  </svg>
   <ul>
-    <li><strong>Range partition</strong> by date (most common) so time-bounded queries touch
-    only relevant partitions, and old partitions can be dropped/archived cheaply.</li>
+    <li><strong>Range partition</strong> by date (most common): time-bounded queries touch only
+    relevant partitions, and old partitions can be dropped/archived in O(1) instead of a giant
+    <code>DELETE</code>.</li>
     <li><strong>Hash partition</strong> to spread write hotspots across partitions.</li>
-    <li>Don't over-partition: thousands of tiny partitions add planning overhead. Match
-    partition granularity to query and retention patterns.</li>
-  </ul>
-  <p>In the lakehouse the analogue is Iceberg/Delta partitioning + file pruning via column
-  stats — same principle, different layer (see the <em>Real-Time Lakehouse</em> paper).</p>
-  </section>
-
-  <section class="reveal">
-  <h2>5. Writing queries the optimizer can help</h2>
-  <ul>
-    <li><strong>SARGable predicates</strong>: <code>WHERE order_date &gt;= '2026-01-01'</code>
-    uses an index; <code>WHERE year(order_date) = 2026</code> wraps the column in a function and
-    forces a scan. Keep the indexed column bare.</li>
-    <li><strong>Select only needed columns</strong> — <code>SELECT *</code> defeats covering
-    indexes and bloats I/O.</li>
-    <li><strong>Avoid N+1 / per-row subqueries</strong> — rewrite as set-based joins or window
-    functions.</li>
-    <li><strong>Filter before you join/aggregate</strong>; push predicates down.</li>
-    <li><strong>Beware implicit casts</strong> (e.g. comparing a varchar column to an int) —
-    they silently disable index use.</li>
+    <li><strong>Don't over-partition.</strong> Thousands of tiny partitions add planning overhead;
+    match granularity to query and retention patterns.</li>
   </ul>
   </section>
 
   <section class="reveal">
-  <h2>6. Beyond a single node</h2>
+  <h2>7. Beyond a single node</h2>
   <ul>
-    <li><strong>Connection pooling</strong> (PgBouncer / built-in pools) — connection churn is
-    a hidden tax under load.</li>
-    <li><strong>Read replicas</strong> to offload analytical/reporting reads from the OLTP
+    <li><strong>Connection pooling</strong> (PgBouncer / built-in pools): connection churn is a
+    hidden tax that shows up as latency under load.</li>
+    <li><strong>Read replicas</strong> to offload reporting/analytical reads from the OLTP
     primary.</li>
-    <li><strong>Caching</strong> (materialized views, result cache, Redis) for expensive,
-    repeated aggregates — with a clear invalidation story.</li>
-    <li><strong>Right engine for the job</strong>: OLTP database for transactions, columnar
-    warehouse/lakehouse for analytics. Forcing analytics onto an OLTP primary is the most common
-    self-inflicted performance wound.</li>
+    <li><strong>Caching</strong>: materialised views, result cache, or an external cache (Redis)
+    for expensive repeated aggregates — always with an explicit invalidation strategy.</li>
+    <li><strong>Right engine for the job</strong>: an OLTP database for transactions, a columnar
+    warehouse/lakehouse for analytics. Forcing heavy analytics onto an OLTP primary is the single
+    most common self-inflicted performance wound.</li>
   </ul>
   </section>
 
   <section class="reveal">
-  <h2>7. A tuning checklist</h2>
+  <h2>8. The same principles in the lakehouse</h2>
+  <p>Columnar lakehouse engines (Spark/Trino over Iceberg/Delta) re-express these ideas at the
+  file layer. Partitioning + per-file column statistics enable <strong>file pruning</strong> (the
+  analogue of partition pruning + index seeks); <code>OPTIMIZE</code>/compaction and
+  <strong>Z-ordering / clustering</strong> co-locate related rows to minimise files scanned; and
+  predicate pushdown is the SARGability of the lake. The mental model transfers directly — see the
+  companion <a href="realtime-lakehouse.html">Real-Time Lakehouse</a> paper.</p>
+  </section>
+
+  <section class="reveal">
+  <h2>9. A tuning checklist</h2>
   <div class="panel">
   <ol>
     <li>Reproduce with a real query + <code>EXPLAIN ANALYZE</code>.</li>
-    <li>Fix stale statistics first (cheap, often sufficient).</li>
-    <li>Add/adjust the right index; verify the plan actually uses it.</li>
-    <li>Make predicates SARGable; trim selected columns.</li>
-    <li>Partition only if the table size demands it.</li>
-    <li>Offload analytics to the right engine / replica.</li>
-    <li>Re-measure. Keep a before/after latency number.</li>
+    <li>Refresh stale statistics first (cheap, often sufficient).</li>
+    <li>Add/adjust the right index; confirm the plan actually uses it.</li>
+    <li>Make predicates SARGable; remove implicit casts; trim selected columns.</li>
+    <li>Partition only if table size demands it; size partitions to the workload.</li>
+    <li>Pool connections; offload analytics to a replica or the right engine.</li>
+    <li>Cache expensive repeated reads with a clear invalidation story.</li>
+    <li>Re-measure and record before/after latency.</li>
   </ol>
   </div>
   </section>
 
   <section class="reveal">
-  <h2>8. Takeaways</h2>
+  <h2>10. Business impact</h2>
+  <p>Performance work is not academic: faster queries cut cloud compute bills (you pay for the
+  scan), shrink dashboard load times (analyst productivity), and protect the OLTP primary from
+  the reporting load that causes user-facing slowdowns. The highest-leverage single move in most
+  shops is separating analytics from the transactional database — it simultaneously fixes latency
+  on both sides.</p>
+  </section>
+
+  <section class="reveal">
+  <h2>References &amp; further reading</h2>
   <ul>
-    <li>Measure with plans; never tune blind.</li>
-    <li>Indexes and fresh statistics resolve most problems before you reach for partitioning.</li>
-    <li>Write SARGable, set-based SQL — the optimizer can only help queries that let it.</li>
-    <li>Separate OLTP and analytics workloads onto the engines built for them.</li>
+    <li>PostgreSQL documentation — <code>EXPLAIN</code>, planner statistics, partitioning.</li>
+    <li>SQL Server query store &amp; execution plans; columnstore indexing.</li>
+    <li>Use The Index, Luke — practical indexing &amp; SARGability.</li>
+    <li>Companion paper: <a href="realtime-lakehouse.html">Real-Time Lakehouse Architectures</a>.</li>
   </ul>
   </section>
 
   <div class="actions">
     <a class="btn primary" href="../../index.html#research">← All research</a>
-    <a class="btn" href="../research/realtime-lakehouse.html">Next: Real-Time Lakehouse →</a>
+    <a class="btn" href="realtime-lakehouse.html">Next: Real-Time Lakehouse →</a>
   </div>
 </article>
 <script src="../assets/site.js"></script>

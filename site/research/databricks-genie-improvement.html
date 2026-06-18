@@ -1,10 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script>
+(function(){function a(t){document.documentElement.setAttribute('data-theme',t);}
+var s;try{s=localStorage.getItem('theme');}catch(e){}
+var m=window.matchMedia&&matchMedia('(prefers-color-scheme: light)').matches;
+a(s||(m?'light':'dark'));
+window.toggleTheme=function(){var c=document.documentElement.getAttribute('data-theme');var n=c==='light'?'dark':'light';a(n);try{localStorage.setItem('theme',n);}catch(e){}var b=document.getElementById('theme-toggle');if(b)b.textContent=n==='light'?'\u{1F319}':'☀️';};
+document.addEventListener('DOMContentLoaded',function(){var b=document.getElementById('theme-toggle');if(b)b.textContent=document.documentElement.getAttribute('data-theme')==='light'?'\u{1F319}':'☀️';});
+if(!s&&window.matchMedia){try{matchMedia('(prefers-color-scheme: light)').addEventListener('change',function(e){var n=e.matches?'light':'dark';a(n);var b=document.getElementById('theme-toggle');if(b)b.textContent=n==='light'?'\u{1F319}':'☀️';});}catch(e){}}
+})();
+</script>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Improving Databricks Genie: Raising NL-to-SQL Accuracy — Feodor Fernando</title>
-<meta name="description" content="Practical levers that raise Databricks Genie / AI-BI natural-language-to-SQL accuracy: semantic modeling, certified metrics, evaluation harnesses." />
+<meta name="description" content="An industry-grade playbook for raising Databricks Genie / AI-BI natural-language-to-SQL accuracy: semantic modeling, certified metrics, retrieval grounding, evaluation harnesses, and a feedback flywheel." />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="../assets/site.css" />
@@ -12,118 +22,235 @@
 <body>
 <div class="topbar"><div class="topbar-inner">
   <a class="back" href="../../index.html">← Portfolio</a>
-  <span class="kind">Research Paper · 02</span>
+  <div class="topbar-right">
+    <span class="kind">Research Paper · 02</span>
+    <button id="theme-toggle" class="theme-btn" onclick="toggleTheme()" aria-label="Toggle light/dark theme">☀️</button>
+  </div>
 </div></div>
 
 <article class="wrap">
   <p class="eyebrow">Databricks · AI-BI</p>
   <h1>Improving Databricks Genie: Raising Natural-Language-to-SQL Accuracy</h1>
-  <p class="lede">Genie's answers are only as good as the semantic context you give it.
-  Most "Genie is wrong" problems are not model problems — they are <em>metadata</em>
-  problems. Here are the levers that move accuracy, in order of impact.</p>
+  <p class="lede">Genie's answers are only as good as the semantic context you give it. Most
+  "Genie is wrong" tickets are not model problems — they are <em>metadata and modeling</em>
+  problems. This is the end-to-end playbook for fixing them, with an architecture, the levers in
+  priority order, and an evaluation harness to prove it worked.</p>
   <div class="meta">
     <span>Feodor Fernando</span><span class="dot">•</span>
     <span>Lakehouse Analytics Research</span><span class="dot">•</span>
-    <span>Rev. 2026-06</span>
+    <span>~13 min read</span><span class="dot">•</span><span>Rev. 2026-06</span>
+  </div>
+
+  <div class="panel">
+    <h3>Abstract</h3>
+    <p>Databricks Genie (AI-BI) translates business questions into SQL over Unity Catalog assets.
+    Out of the box, accuracy on a real enterprise catalog is mediocre — not because the underlying
+    model is weak, but because the catalog gives it almost nothing to ground on: cryptic column
+    names, undefined business metrics, ambiguous join paths, and hundreds of overlapping tables.
+    This paper treats NL-to-SQL accuracy as an <strong>engineering problem with measurable
+    levers</strong>. We present a grounding architecture, rank the levers by empirical impact
+    (semantic comments → certified metric views → curated surface area → example pairs), define an
+    <strong>execution-match evaluation harness</strong> to quantify progress, and describe the
+    feedback flywheel that compounds accuracy over time.</p>
   </div>
 
   <section class="reveal">
-  <h2>1. Why Genie gets answers wrong</h2>
-  <p>Databricks Genie (AI-BI) translates a business question into SQL over Unity Catalog
-  tables. When it's wrong, the failure almost always traces to one of four gaps:</p>
-  <ul>
-    <li><strong>Ambiguous schema</strong> — column names like <code>amt</code>, <code>flag</code>,
-    <code>dt</code> give the model nothing to ground on.</li>
-    <li><strong>Undefined business metrics</strong> — "revenue", "active user", "churn" each
-    have a precise definition the model can only guess at.</li>
-    <li><strong>Join ambiguity</strong> — multiple plausible join paths between tables.</li>
-    <li><strong>No feedback loop</strong> — wrong answers are never captured as training
-    examples or corrections.</li>
-  </ul>
+  <h2>1. How Genie produces an answer</h2>
+  <p>Conceptually Genie performs retrieval-augmented SQL generation: it assembles context about
+  the available tables (names, column comments, sample values, certified metrics, curated
+  instructions, and example question→SQL pairs), retrieves the slice relevant to the user's
+  question, and prompts an LLM to emit SQL, which is then executed against the warehouse. Every
+  point in that chain where context is thin or ambiguous is a place the model must guess — and
+  guessing is where wrong answers come from.</p>
   </section>
 
   <section class="reveal">
-  <h2>2. Lever 1 — Describe the schema in business language</h2>
-  <p>The single highest-ROI change. Table and column <code>COMMENT</code>s are part of the
-  context Genie reads. Rich comments turn guessing into grounding:</p>
+  <h2>2. Why Genie gets answers wrong — the four gaps</h2>
+  <table>
+    <thead><tr><th>Gap</th><th>Symptom</th><th>Root cause</th></tr></thead>
+    <tbody>
+      <tr><td>Ambiguous schema</td><td>wrong column chosen</td><td><code>amt</code>, <code>flag</code>, <code>dt</code> carry no meaning</td></tr>
+      <tr><td>Undefined metrics</td><td>"revenue" computed differently each time</td><td>no single certified definition</td></tr>
+      <tr><td>Grain confusion</td><td>double-counting / wrong aggregation</td><td>table grain ("one row per …") undocumented</td></tr>
+      <tr><td>Join ambiguity</td><td>wrong or fan-out joins</td><td>multiple plausible join paths, no guidance</td></tr>
+      <tr><td>Surface sprawl</td><td>picks a raw/bronze table</td><td>hundreds of tables exposed to the space</td></tr>
+    </tbody>
+  </table>
+  </section>
+
+  <section class="reveal">
+  <h2>3. Grounding architecture</h2>
+  <p>The fix is to engineer the context Genie consumes. The diagram shows the grounding stack: a
+  curated gold schema with rich semantics feeds Genie, and a feedback loop continuously improves
+  that semantic layer from real usage.</p>
+  <svg class="diagram" viewBox="0 0 900 400" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Genie grounding architecture">
+    <defs><linearGradient id="f" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#38bdf8"/><stop offset="1" stop-color="#22d3a6"/></linearGradient></defs>
+    <!-- semantic layer inputs -->
+    <text x="160" y="28" text-anchor="middle" class="node-title">Engineered semantic layer</text>
+    <rect x="20" y="45" width="280" height="40" rx="8" fill="#141b2c" stroke="#233048"/><text x="160" y="70" text-anchor="middle" class="node-label">table &amp; column COMMENTs (business language)</text>
+    <rect x="20" y="95" width="280" height="40" rx="8" fill="#141b2c" stroke="#38bdf8"/><text x="160" y="120" text-anchor="middle" class="node-label">certified metric views (one definition)</text>
+    <rect x="20" y="145" width="280" height="40" rx="8" fill="#141b2c" stroke="#233048"/><text x="160" y="170" text-anchor="middle" class="node-label">curated instructions + example Q→SQL pairs</text>
+    <rect x="20" y="195" width="280" height="40" rx="8" fill="#141b2c" stroke="#233048"/><text x="160" y="220" text-anchor="middle" class="node-label">curated, small gold schema (Unity Catalog)</text>
+
+    <!-- genie -->
+    <line class="flow" x1="300" y1="140" x2="380" y2="140" stroke="url(#f)" stroke-width="3"/>
+    <g class="pulse"><rect x="380" y="100" width="180" height="80" rx="10" fill="#0e1626" stroke="#22d3a6"/></g>
+    <text x="470" y="132" text-anchor="middle" class="node-title">Databricks Genie</text>
+    <text x="470" y="150" text-anchor="middle" class="node-label">retrieve context → LLM</text>
+    <text x="470" y="166" text-anchor="middle" class="node-label">→ SQL → execute</text>
+
+    <!-- user + answer -->
+    <rect x="380" y="35" width="180" height="40" rx="8" fill="#141b2c" stroke="#38bdf8"/><text x="470" y="60" text-anchor="middle" class="node-label">"revenue last week by region?"</text>
+    <line class="flow" x1="470" y1="75" x2="470" y2="100" stroke="url(#f)" stroke-width="2.5"/>
+    <line class="flow" x1="560" y1="140" x2="640" y2="140" stroke="url(#f)" stroke-width="3"/>
+    <rect x="640" y="115" width="160" height="50" rx="9" fill="#141b2c" stroke="#22d3a6"/><text x="720" y="138" text-anchor="middle" class="node-title">SQL + answer</text><text x="720" y="154" text-anchor="middle" class="node-label">on certified view</text>
+
+    <!-- eval + feedback loop -->
+    <text x="450" y="270" text-anchor="middle" class="node-title">Evaluation &amp; feedback flywheel</text>
+    <rect x="120" y="285" width="180" height="44" rx="9" fill="#141b2c" stroke="#233048"/><text x="210" y="312" text-anchor="middle" class="node-label">execution-match eval set</text>
+    <rect x="360" y="285" width="180" height="44" rx="9" fill="#141b2c" stroke="#233048"/><text x="450" y="312" text-anchor="middle" class="node-label">capture 👎 + corrected SQL</text>
+    <rect x="600" y="285" width="180" height="44" rx="9" fill="#141b2c" stroke="#233048"/><text x="690" y="312" text-anchor="middle" class="node-label">triage → new comments/views/pairs</text>
+    <line class="flow" x1="690" y1="285" x2="690" y2="200" stroke="url(#f)" stroke-width="2.5"/>
+    <line class="flow" x1="690" y1="200" x2="300" y2="190" stroke="url(#f)" stroke-width="2.5"/>
+  </svg>
+  </section>
+
+  <section class="reveal">
+  <h2>4. Lever 1 — Describe the schema in business language</h2>
+  <p>Highest ROI, lowest effort. Table and column <code>COMMENT</code>s are part of the context
+  Genie reads; rich comments convert guessing into grounding.</p>
   <pre><code>COMMENT ON TABLE gold.revenue_daily IS
-  'Daily revenue and engagement by region. One row per (date, region).';
+  'Daily revenue and engagement by region. One row per (date, region).
+   Source of truth for revenue reporting. Excludes test accounts.';
 
 ALTER TABLE gold.revenue_daily ALTER COLUMN revenue
-  COMMENT 'Total gross revenue in USD. Sum of order amounts for the date/region.';</code></pre>
-  <p>Rename cryptic columns where you can; comment them where you can't. Add table-level
-  notes describing grain ("one row per …") — grain confusion is a top cause of double-counting.</p>
+  COMMENT 'Total gross revenue in USD = sum of order amounts for the date/region.';
+ALTER TABLE gold.revenue_daily ALTER COLUMN active_users
+  COMMENT 'Distinct users who transacted that day in that region.';</code></pre>
+  <p>Two rules pay off most: rename cryptic columns where you can (comment them where you can't),
+  and <strong>state the grain at table level</strong> ("one row per …"). Grain confusion is the
+  top cause of silent double-counting.</p>
   </section>
 
   <section class="reveal">
-  <h2>3. Lever 2 — Certified metric views</h2>
-  <p>Encode the <em>correct</em> business definitions once, in a curated view, and point Genie
-  at it. The model should never re-derive "7-day rolling revenue" — it should select from a
-  view that already defines it:</p>
+  <h2>5. Lever 2 — Certified metric views</h2>
+  <p>Encode the <em>correct</em> business definition once, in a curated view, and point Genie at
+  it. The model should never re-derive "7-day rolling revenue" — it should select from a view
+  that already defines it.</p>
   <pre><code>CREATE OR REPLACE VIEW gold.metrics_revenue
   COMMENT 'Certified revenue metrics for AI-BI. Prefer this view for revenue questions.'
-AS SELECT date, region, revenue, avg_order_value,
+AS SELECT date, region, revenue, txn_count, avg_order_value,
      sum(revenue) OVER (PARTITION BY region ORDER BY date
        ROWS BETWEEN 6 PRECEDING AND CURRENT ROW) AS revenue_7d_rolling
    FROM gold.revenue_daily;</code></pre>
-  <p>This collapses the space of "plausible but subtly wrong" SQL the model might generate.</p>
+  <p>This collapses the space of "plausible but subtly wrong" SQL the model might otherwise
+  generate, and gives the business a single auditable definition of each metric.</p>
   </section>
 
   <section class="reveal">
-  <h2>4. Lever 3 — Curated Genie "instructions" &amp; example pairs</h2>
-  <p>Genie spaces support general instructions and example question→SQL pairs. Treat these as
-  a living asset:</p>
+  <h2>6. Lever 3 — Curate the surface area</h2>
+  <p>Do not expose 400 tables to a Genie space. Grant the space access only to a small, certified
+  gold schema. Fewer, well-described tables beat a sprawling catalog: less ambiguity, fewer wrong
+  joins, faster planning, and a far smaller chance of the model selecting a raw/bronze table that
+  looks superficially relevant.</p>
+  </section>
+
+  <section class="reveal">
+  <h2>7. Lever 4 — Instructions &amp; example pairs</h2>
+  <p>Genie spaces accept general instructions and example question→SQL pairs; treat them as a
+  living asset:</p>
   <ul>
     <li>State <strong>defaults</strong>: "Revenue means <code>metrics_revenue.revenue</code>.
-    Default currency USD. Exclude test accounts (<code>is_test = false</code>)."</li>
-    <li>Provide <strong>canonical example pairs</strong> for the 20 most common questions —
-    these act as few-shot anchors.</li>
-    <li>Specify <strong>preferred join paths</strong> and which tables to avoid (raw/bronze).</li>
+    Default currency USD. Exclude test accounts (<code>is_test = false</code>). 'Last week' =
+    previous ISO week."</li>
+    <li>Provide <strong>canonical example pairs</strong> for the top ~20 questions — they act as
+    few-shot anchors that strongly bias the model toward correct patterns.</li>
+    <li>Specify <strong>preferred join paths</strong> and tables to avoid (raw/bronze, deprecated
+    marts).</li>
   </ul>
   </section>
 
   <section class="reveal">
-  <h2>5. Lever 4 — Constrain the surface area</h2>
-  <p>Don't expose 400 tables to a Genie space. Curate a small, certified gold schema and grant
-  the space access only to it. Fewer, well-described tables beat a sprawling catalog: less
-  ambiguity, fewer wrong joins, faster planning.</p>
+  <h2>8. Measuring it: an execution-match eval harness</h2>
+  <p>You cannot improve what you do not measure. Build a benchmark of question → expected-result
+  pairs and score Genie on <strong>execution match</strong> — does the generated SQL return the
+  same result set as a hand-written gold query? — rather than fragile string match.</p>
+  <pre><code>def evaluate(genie, benchmark):
+    passed = 0
+    by_cause = Counter()
+    for q in benchmark:
+        sql      = genie.ask(q.question)
+        got      = run(sql)
+        expected = run(q.gold_sql)
+        if frames_equal(got, expected):       # set-equality on results
+            passed += 1
+        else:
+            by_cause[classify_failure(sql, q)] += 1   # grain/join/metric/filter
+    return passed / len(benchmark), by_cause</code></pre>
+  <p>Track accuracy over time, re-run after every metadata change, and use the
+  <code>by_cause</code> histogram to decide which lever to pull next. A drop in "metric" failures
+  after adding certified views is the proof your work landed.</p>
   </section>
 
   <section class="reveal">
-  <h2>6. Measuring it: an NL-to-SQL eval harness</h2>
-  <p>You can't improve what you don't measure. Build a benchmark of question → expected-result
-  pairs and score Genie on <strong>execution match</strong> (does the generated SQL return the
-  same result set as the gold query?) rather than string match:</p>
-  <pre><code>for q in benchmark:
-    sql      = genie.ask(q.question)
-    got      = run(sql)
-    expected = run(q.gold_sql)
-    q.pass   = frames_equal(got, expected)   # set-equality on results
-accuracy = mean(q.pass for q in benchmark)</code></pre>
-  <p>Track accuracy over time and re-run after every metadata change. Bucket failures by cause
-  (grain, join, metric, filter) to know which lever to pull next.</p>
+  <h2>9. The feedback flywheel</h2>
+  <p>Capture every thumbs-down answer together with the analyst's corrected SQL. Triage weekly:
+  each correction becomes one of three durable artifacts — a new <strong>comment</strong>, a new
+  <strong>metric view</strong>, or a new <strong>example pair</strong> — and ideally a new row in
+  the eval set so the fix is regression-protected. Accuracy is a flywheel, not a one-time setup;
+  the catalog gets smarter with use.</p>
   </section>
 
   <section class="reveal">
-  <h2>7. The feedback loop</h2>
-  <p>Capture thumbs-down answers and the analyst's corrected SQL. Triage weekly: each
-  correction becomes either a new comment, a metric view, or an example pair. Accuracy is a
-  flywheel, not a one-time setup.</p>
+  <h2>10. Governance &amp; safety</h2>
+  <ul>
+    <li><strong>Unity Catalog permissions</strong> bound what any user's Genie session can read —
+    row/column-level security still applies, so Genie cannot leak data the user couldn't query
+    directly.</li>
+    <li><strong>Certified vs experimental</strong>: mark which views are certified so the
+    organisation knows which answers are trustworthy.</li>
+    <li><strong>Human-in-the-loop for decisions</strong>: Genie accelerates analysis; it does not
+    replace review for board-level or regulatory numbers.</li>
+  </ul>
   </section>
 
   <section class="reveal">
-  <h2>8. Results pattern &amp; takeaways</h2>
+  <h2>11. Impact pattern &amp; lever ranking</h2>
   <div class="panel">
     <h3>Typical impact ordering</h3>
-    <p>In practice the lever ranking is: <strong>(1) column/table comments → (2) certified
-    metric views → (3) curating the exposed schema → (4) example pairs</strong>. The first two
-    alone resolve the majority of "Genie got it wrong" tickets.</p>
+    <p>In practice: <strong>(1) column/table comments → (2) certified metric views → (3) curating
+    the exposed schema → (4) example pairs.</strong> The first two alone resolve the majority of
+    "Genie got it wrong" tickets, because they directly attack the two biggest gaps (ambiguous
+    schema and undefined metrics). The remaining levers harvest the long tail.</p>
   </div>
+  <p>Business impact is twofold: analysts self-serve questions that previously queued behind the
+  data team (cycle-time reduction), and the organisation gains a single certified definition of
+  each metric (consistency and trust). The companion <em>Databricks Lakehouse + Genie</em> project
+  implements this semantic layer end to end.</p>
+  </section>
+
+  <section class="reveal">
+  <h2>12. Implementation checklist</h2>
+  <div class="panel">
+  <ol>
+    <li>Comment every gold table (state grain) and every column in business language.</li>
+    <li>Publish certified metric views for the core KPIs; mark them certified.</li>
+    <li>Restrict the Genie space to a small curated gold schema only.</li>
+    <li>Author space instructions (defaults, join paths) + top-20 example pairs.</li>
+    <li>Stand up an execution-match eval set; run it in CI / on every change.</li>
+    <li>Capture 👎 + corrected SQL; triage weekly into comments/views/pairs + eval rows.</li>
+    <li>Enforce Unity Catalog permissions; separate certified from experimental.</li>
+  </ol>
+  </div>
+  </section>
+
+  <section class="reveal">
+  <h2>References &amp; further reading</h2>
   <ul>
-    <li>Genie accuracy is a <strong>metadata &amp; semantics</strong> problem far more than a
-    model problem.</li>
-    <li>Comments + certified views + a small curated schema do most of the work.</li>
-    <li>Measure with <strong>execution-match</strong> evals; close the loop on failures.</li>
+    <li>Databricks — AI/BI Genie, Unity Catalog comments &amp; certified assets documentation.</li>
+    <li>Text-to-SQL evaluation literature — execution-match vs exact-match metrics (e.g. Spider).</li>
+    <li>Semantic layer / metrics-layer design patterns.</li>
+    <li>Companion project: <a href="../projects/databricks-lakehouse-genie.html">Databricks Lakehouse + Genie</a>.</li>
   </ul>
   </section>
 

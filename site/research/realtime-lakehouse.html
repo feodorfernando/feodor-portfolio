@@ -1,10 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script>
+(function(){function a(t){document.documentElement.setAttribute('data-theme',t);}
+var s;try{s=localStorage.getItem('theme');}catch(e){}
+var m=window.matchMedia&&matchMedia('(prefers-color-scheme: light)').matches;
+a(s||(m?'light':'dark'));
+window.toggleTheme=function(){var c=document.documentElement.getAttribute('data-theme');var n=c==='light'?'dark':'light';a(n);try{localStorage.setItem('theme',n);}catch(e){}var b=document.getElementById('theme-toggle');if(b)b.textContent=n==='light'?'\u{1F319}':'☀️';};
+document.addEventListener('DOMContentLoaded',function(){var b=document.getElementById('theme-toggle');if(b)b.textContent=document.documentElement.getAttribute('data-theme')==='light'?'\u{1F319}':'☀️';});
+if(!s&&window.matchMedia){try{matchMedia('(prefers-color-scheme: light)').addEventListener('change',function(e){var n=e.matches?'light':'dark';a(n);var b=document.getElementById('theme-toggle');if(b)b.textContent=n==='light'?'\u{1F319}':'☀️';});}catch(e){}}
+})();
+</script>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Real-Time Lakehouse Architectures — Feodor Fernando</title>
-<meta name="description" content="Streaming, CDC, and the table-format wars: how Iceberg, Delta, and Hudi enable a real-time lakehouse, and the operational realities of running one." />
+<meta name="description" content="An industry-grade study of real-time lakehouse architectures: streaming, CDC, the Iceberg/Delta/Hudi table-format wars, merge-on-read, the small-file problem, and operating streaming tables in production." />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="../assets/site.css" />
@@ -12,124 +22,213 @@
 <body>
 <div class="topbar"><div class="topbar-inner">
   <a class="back" href="../../index.html">← Portfolio</a>
-  <span class="kind">Research Paper · 04</span>
+  <div class="topbar-right">
+    <span class="kind">Research Paper · 04</span>
+    <button id="theme-toggle" class="theme-btn" onclick="toggleTheme()" aria-label="Toggle light/dark theme">☀️</button>
+  </div>
 </div></div>
 
 <article class="wrap">
   <p class="eyebrow">Streaming · Lakehouse</p>
   <h1>Real-Time Lakehouse Architectures: Streaming, CDC &amp; the Table-Format Wars</h1>
-  <p class="lede">Open table formats turned the data lake into a transactional, real-time
-  store. This is what they enable, how Iceberg / Delta / Hudi differ, and the operational
-  realities of running streaming tables in production.</p>
+  <p class="lede">Open table formats turned the data lake into a transactional, real-time store.
+  This paper covers what they enable, how Iceberg / Delta / Hudi differ, the merge-on-read
+  trade-off at the heart of streaming, and the operational realities — small files, delete
+  accumulation, exactly-once — that decide whether a streaming lakehouse survives production.</p>
   <div class="meta">
     <span>Feodor Fernando</span><span class="dot">•</span>
     <span>Lakehouse Research</span><span class="dot">•</span>
-    <span>Rev. 2026-06</span>
+    <span>~14 min read</span><span class="dot">•</span><span>Rev. 2026-06</span>
+  </div>
+
+  <div class="panel">
+    <h3>Abstract</h3>
+    <p>The lakehouse pattern resolves the decade-long split between cheap-but-dumb data lakes and
+    powerful-but-closed warehouses by adding an open <em>table format</em> — ACID commits,
+    snapshot isolation, schema evolution, and row-level mutations — on top of object storage. This
+    paper explains the metadata mechanics that make this possible, contrasts the three dominant
+    formats (Apache Iceberg, Delta Lake, Apache Hudi), analyses the copy-on-write vs merge-on-read
+    decision that governs streaming latency and cost, and details the maintenance regime
+    (compaction, delete rewriting, snapshot expiry, orphan cleanup) without which a real-time
+    lakehouse quietly degrades. A reference architecture and a 2026 format-selection guide close
+    the paper.</p>
   </div>
 
   <section class="reveal">
-  <h2>1. Why "lakehouse" exists</h2>
-  <p>The lake gave us cheap, open storage but no transactions; the warehouse gave us ACID and
-  performance but locked data in a proprietary engine. The lakehouse merges them: an
-  <strong>open table format</strong> adds ACID commits, snapshot isolation, schema evolution,
-  and row-level updates <em>on top of</em> object storage — so one copy of data serves BI, ML,
-  and streaming, readable by many engines.</p>
+  <h2>1. Why the lakehouse exists</h2>
+  <p>The data lake gave us cheap, open, infinitely scalable storage — but no transactions, no
+  consistent reads, and no safe updates. The warehouse gave us ACID and performance — but locked
+  data inside a proprietary engine and a separate copy. The lakehouse merges them: an open table
+  format adds the warehouse's guarantees directly on top of the lake's storage, so a
+  <strong>single copy</strong> of data serves BI, ML, and streaming, readable by many engines at
+  once.</p>
   </section>
 
   <section class="reveal">
-  <h2>2. What makes a lakehouse "real-time"</h2>
+  <h2>2. The metadata tree (what a commit actually is)</h2>
+  <p>All three formats share the same core idea: a table is a tree of metadata over immutable data
+  files, and a "commit" is a single atomic swap of one pointer. Understanding this explains every
+  capability that follows.</p>
+  <svg class="diagram" viewBox="0 0 860 320" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Table-format metadata tree">
+    <defs><linearGradient id="f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#38bdf8"/><stop offset="1" stop-color="#22d3a6"/></linearGradient></defs>
+    <rect x="330" y="20" width="200" height="44" rx="9" fill="#0e1626" stroke="#22d3a6"/><text x="430" y="40" text-anchor="middle" class="node-title">catalog pointer</text><text x="430" y="56" text-anchor="middle" class="node-label">atomic swap on commit</text>
+    <line class="flow" x1="430" y1="64" x2="430" y2="95" stroke="url(#f)" stroke-width="3"/>
+    <rect x="330" y="95" width="200" height="44" rx="9" fill="#141b2c" stroke="#38bdf8"/><text x="430" y="115" text-anchor="middle" class="node-title">table metadata</text><text x="430" y="131" text-anchor="middle" class="node-label">schema · specs · snapshots</text>
+    <line class="flow" x1="430" y1="139" x2="430" y2="170" stroke="url(#f)" stroke-width="3"/>
+    <rect x="330" y="170" width="200" height="40" rx="9" fill="#141b2c" stroke="#233048"/><text x="430" y="195" text-anchor="middle" class="node-label">snapshot → manifest list</text>
+    <line class="flow" x1="380" y1="210" x2="250" y2="250" stroke="url(#f)" stroke-width="2.5"/>
+    <line class="flow" x1="480" y1="210" x2="610" y2="250" stroke="url(#f)" stroke-width="2.5"/>
+    <rect x="120" y="250" width="220" height="44" rx="9" fill="#141b2c" stroke="#233048"/><text x="230" y="270" text-anchor="middle" class="node-label">manifests → data files</text><text x="230" y="286" text-anchor="middle" class="node-label">Parquet + per-file stats</text>
+    <rect x="520" y="250" width="220" height="44" rx="9" fill="#141b2c" stroke="#f59e0b"/><text x="630" y="270" text-anchor="middle" class="node-label">delete files (MOR)</text><text x="630" y="286" text-anchor="middle" class="node-label">position / equality deletes</text>
+  </svg>
+  <p>A commit writes new data/delete files → new manifests → new metadata → then atomically moves
+  the catalog pointer. Concurrent writers use optimistic concurrency: the loser detects the
+  pointer moved and retries. Per-file column statistics in the manifests drive
+  <strong>file pruning</strong> — the lakehouse equivalent of an index seek.</p>
+  </section>
+
+  <section class="reveal">
+  <h2>3. What makes a lakehouse "real-time"</h2>
   <ul>
-    <li><strong>Streaming ingestion</strong> — micro-batch commits (Spark/Flink) land data
-    seconds-to-minutes after it's produced, each batch an atomic snapshot.</li>
-    <li><strong>Change Data Capture (CDC)</strong> — database changes (Debezium) replayed as
+    <li><strong>Streaming ingestion</strong> — Spark/Flink micro-batches commit seconds-to-minutes
+    after data is produced, each batch an atomic snapshot.</li>
+    <li><strong>Change Data Capture (CDC)</strong> — database changes (via Debezium) replayed as
     row-level upserts/deletes, keeping a queryable mirror of operational state.</li>
-    <li><strong>Row-level mutations</strong> — merge-on-read deletes make updates/deletes cheap
-    enough to apply continuously.</li>
-    <li><strong>Snapshot isolation</strong> — readers see a consistent table while writers
-    stream into it.</li>
+    <li><strong>Row-level mutations</strong> — merge-on-read deletes make continuous
+    updates/deletes cheap enough to apply per micro-batch.</li>
+    <li><strong>Snapshot isolation</strong> — readers see a consistent table while writers stream
+    into it; no half-written partitions.</li>
   </ul>
-  </section>
-
-  <section class="reveal">
-  <h2>3. The table-format comparison</h2>
-  <table>
-    <thead><tr><th>Capability</th><th>Iceberg</th><th>Delta Lake</th><th>Hudi</th></tr></thead>
-    <tbody>
-      <tr><td>ACID commits</td><td>✅</td><td>✅</td><td>✅</td></tr>
-      <tr><td>Row-level deletes</td><td>✅ pos + eq</td><td>✅ deletion vectors</td><td>✅ CoW/MoR</td></tr>
-      <tr><td>Hidden partitioning</td><td>✅</td><td>❌ (explicit)</td><td>❌</td></tr>
-      <tr><td>Partition evolution</td><td>✅</td><td>limited</td><td>limited</td></tr>
-      <tr><td>Engine breadth</td><td>Spark, Flink, Trino, Snowflake, DuckDB, BigQuery</td><td>Spark-first, broadening</td><td>Spark/Flink-first</td></tr>
-      <tr><td>Streaming upserts</td><td>✅ MOR</td><td>✅</td><td>✅ (built for it)</td></tr>
-    </tbody>
-  </table>
-  <p>Iceberg's differentiators: <strong>hidden partitioning</strong> (queries don't reference
-  partition columns, and you can evolve the spec without rewriting history) and the broadest
-  cross-engine reach via the REST catalog. Delta is strongest inside the Databricks ecosystem;
-  Hudi was purpose-built for high-frequency upserts.</p>
   </section>
 
   <section class="reveal">
   <h2>4. Copy-on-write vs merge-on-read</h2>
-  <p>The decision that defines your latency/cost profile, common to all three formats:</p>
-  <pre><code>              write cost   read cost              best for
-  COW         high         low                    append-mostly, batch
-  MOR         low          grows with deletes     streaming upserts / CDC</code></pre>
-  <p>Rule of thumb for streaming: <strong>ingest with MOR, then compact aggressively</strong>
-  to fold delete files back in and keep read amplification bounded.</p>
+  <p>The decision that defines your latency/cost profile, common to all three formats. Under
+  <strong>copy-on-write (COW)</strong> an update rewrites whole data files — reads stay fast,
+  writes are expensive. Under <strong>merge-on-read (MOR)</strong> an update writes a small delete
+  file plus new rows — writes are cheap, but reads must merge data + delete files until compaction
+  folds them in.</p>
+  <pre><code>              write cost    read cost               best for
+  COW         high          low                     append-mostly, batch, BI gold
+  MOR         low           grows with deletes      streaming upserts / CDC silver</code></pre>
+  <blockquote>Rule for streaming: ingest with MOR for cheap per-batch commits, then compact
+  aggressively to keep read amplification bounded. Use COW for stable, read-heavy gold tables.</blockquote>
   </section>
 
   <section class="reveal">
-  <h2>5. The operational realities (where projects fail)</h2>
+  <h2>5. The format comparison (2026)</h2>
+  <table>
+    <thead><tr><th>Capability</th><th>Iceberg</th><th>Delta Lake</th><th>Hudi</th></tr></thead>
+    <tbody>
+      <tr><td>ACID commits</td><td>✅</td><td>✅</td><td>✅</td></tr>
+      <tr><td>Row-level deletes</td><td>✅ position + equality</td><td>✅ deletion vectors</td><td>✅ CoW/MoR</td></tr>
+      <tr><td>Hidden partitioning</td><td>✅</td><td>❌ (explicit)</td><td>❌</td></tr>
+      <tr><td>Partition evolution</td><td>✅ no rewrite</td><td>limited</td><td>limited</td></tr>
+      <tr><td>Engine breadth</td><td>Spark, Flink, Trino, Snowflake, DuckDB, BigQuery</td><td>Spark-first, broadening</td><td>Spark/Flink-first</td></tr>
+      <tr><td>Streaming upserts</td><td>✅ MOR</td><td>✅</td><td>✅ (built for it)</td></tr>
+      <tr><td>Catalog</td><td>open REST catalog spec</td><td>Unity / catalogs</td><td>Hive/various</td></tr>
+    </tbody>
+  </table>
+  <p>Iceberg's differentiators: <strong>hidden partitioning</strong> (queries never reference
+  partition columns, and the partition spec can evolve without rewriting history) and the broadest
+  cross-engine reach via the REST catalog. Delta is strongest inside the Databricks ecosystem and
+  has matured fast with deletion vectors and liquid clustering. Hudi was purpose-built for
+  high-frequency upserts with strong record-level indexing.</p>
+  </section>
+
+  <section class="reveal">
+  <h2>6. Reference architecture</h2>
+  <svg class="diagram" viewBox="0 0 900 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Real-time lakehouse reference">
+    <defs><linearGradient id="f2" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#38bdf8"/><stop offset="1" stop-color="#22d3a6"/></linearGradient></defs>
+    <line class="flow" x1="160" y1="90" x2="240" y2="90" stroke="url(#f2)" stroke-width="3"/>
+    <line class="flow" x1="420" y1="90" x2="500" y2="90" stroke="url(#f2)" stroke-width="3"/>
+    <line class="flow" x1="720" y1="90" x2="800" y2="90" stroke="url(#f2)" stroke-width="3"/>
+    <rect x="20" y="65" width="140" height="50" rx="9" fill="#141b2c" stroke="#233048"/><text x="90" y="88" text-anchor="middle" class="node-title">Kafka / Debezium</text><text x="90" y="104" text-anchor="middle" class="node-label">events · CDC</text>
+    <rect x="240" y="65" width="180" height="50" rx="9" fill="#141b2c" stroke="#38bdf8"/><text x="330" y="88" text-anchor="middle" class="node-title">Spark / Flink streaming</text><text x="330" y="104" text-anchor="middle" class="node-label">micro-batch commits</text>
+    <!-- lakehouse box -->
+    <rect x="495" y="40" width="225" height="180" rx="11" fill="#0e1626" stroke="#22d3a6" stroke-dasharray="5 5"/>
+    <text x="607" y="62" text-anchor="middle" class="node-label">Iceberg / Delta lakehouse</text>
+    <g class="pulse"><rect x="515" y="72" width="185" height="34" rx="7" fill="#141b2c" stroke="#233048"/></g><text x="607" y="94" text-anchor="middle" class="node-label">bronze — append</text>
+    <rect x="515" y="114" width="185" height="34" rx="7" fill="#141b2c" stroke="#38bdf8"/><text x="607" y="136" text-anchor="middle" class="node-label">silver — MERGE (MOR)</text>
+    <rect x="515" y="156" width="185" height="34" rx="7" fill="#141b2c" stroke="#22d3a6"/><text x="607" y="178" text-anchor="middle" class="node-label">gold — compacted (COW)</text>
+    <rect x="800" y="65" width="90" height="50" rx="9" fill="#141b2c" stroke="#22d3a6"/><text x="845" y="94" text-anchor="middle" class="node-label">Trino / BI</text>
+    <!-- maintenance -->
+    <rect x="180" y="240" width="540" height="40" rx="9" fill="#0e1626" stroke="#f59e0b"/><text x="450" y="265" text-anchor="middle" class="node-label">out-of-band maintenance: compaction · rewrite deletes · expire snapshots · remove orphans</text>
+    <line class="flow" x1="450" y1="220" x2="450" y2="240" stroke="url(#f2)" stroke-width="2.5"/>
+  </svg>
+  <p>Bronze appends raw cheaply; silver applies MOR MERGE upserts to dedup and correct late data;
+  gold holds compacted COW aggregates for fast BI. Maintenance runs out-of-band so it never blocks
+  ingestion. This is the shape of the companion <a href="../projects/iceberg-streaming.html">Iceberg
+  Streaming Lakehouse</a> and <a href="../projects/cdc-iceberg.html">CDC → Iceberg</a> projects.</p>
+  </section>
+
+  <section class="reveal">
+  <h2>7. The operational realities (where projects fail)</h2>
   <ul>
-    <li><strong>Small files</strong> — streaming commits create millions of tiny files;
-    compaction (<code>rewrite_data_files</code>) is non-negotiable.</li>
-    <li><strong>Delete-file accumulation</strong> — under MOR, every update adds a delete file;
-    monitor the delete ratio and rewrite position deletes.</li>
-    <li><strong>Snapshot/metadata growth</strong> — expire snapshots and rewrite manifests to
-    keep planning fast.</li>
-    <li><strong>Orphan files</strong> — failed commits leave unreferenced files; clean them.</li>
-    <li><strong>Exactly-once</strong> — achieved via checkpoints + idempotent MERGE, not by
-    trying to force it across the whole chain.</li>
+    <li><strong>Small files.</strong> Streaming commits create millions of tiny files; query
+    planning slows and storage LIST/GET costs explode. Compaction
+    (<code>rewrite_data_files</code> to 128–256 MB targets) is non-negotiable — the single most
+    important maintenance job.</li>
+    <li><strong>Delete-file accumulation.</strong> Under MOR, every update adds a delete file;
+    monitor the delete-file ratio and run <code>rewrite_position_delete_files</code> to bound read
+    amplification.</li>
+    <li><strong>Snapshot &amp; manifest growth.</strong> <code>expire_snapshots</code> and
+    <code>rewrite_manifests</code> keep metadata and planning fast while preserving a time-travel
+    window.</li>
+    <li><strong>Orphan files.</strong> Failed commits leave unreferenced files;
+    <code>remove_orphan_files</code> reclaims the storage.</li>
+    <li><strong>Exactly-once.</strong> Achieved via checkpoints + idempotent MERGE keyed on a
+    business key (and LSN for CDC), not by trying to force it across the whole chain.</li>
   </ul>
   </section>
 
   <section class="reveal">
-  <h2>6. A reference real-time lakehouse</h2>
-  <pre><code>Kafka / Debezium ─► Spark|Flink streaming ─► bronze (append)
-                                              silver (MERGE, merge-on-read)
-                                              gold   (compacted aggregates)
-                                                   │
-   out-of-band maintenance: compaction · expire_snapshots · remove_orphans
-                                                   │
-                          Trino / Spark / DuckDB / BI  (consistent snapshot reads)</code></pre>
-  <p>This is exactly the shape of the companion <em>Iceberg Streaming Lakehouse</em> and
-  <em>CDC → Iceberg</em> projects.</p>
+  <h2>8. CDC into the lakehouse</h2>
+  <p>CDC is the bridge between operational databases and the lakehouse. Debezium reads the source
+  WAL/binlog and emits change events; a streaming job applies them as row-level upserts/deletes
+  via MERGE, guarded by the source LSN so replay and out-of-order delivery are idempotent. Deletes
+  are exactly why Hive-style tables fail at CDC and why MOR row-level deletes matter — they make
+  <code>WHEN MATCHED THEN DELETE</code> a cheap delete file instead of a full-file rewrite. The
+  initial Debezium snapshot and the streaming tail are handled identically (upsert), so the mirror
+  is correct from the first event.</p>
   </section>
 
   <section class="reveal">
-  <h2>7. Choosing a format in 2026</h2>
+  <h2>9. Choosing a format in 2026</h2>
   <ul>
     <li><strong>Vendor-neutral, multi-engine, long horizon</strong> → Iceberg.</li>
-    <li><strong>Databricks-centric shop</strong> → Delta (deepest native integration).</li>
-    <li><strong>Extremely high-frequency upserts</strong> → Hudi is worth evaluating.</li>
-    <li>Convergence is happening (UniForm / cross-format reads) — bet on the open catalog
-    layer, not a single engine.</li>
+    <li><strong>Databricks-centric shop</strong> → Delta (deepest native integration, liquid
+    clustering, deletion vectors).</li>
+    <li><strong>Extremely high-frequency upserts with record indexing</strong> → evaluate Hudi.</li>
+    <li>Convergence is real (cross-format reads / UniForm). Bet on the <strong>open catalog
+    layer</strong> rather than locking to a single engine.</li>
   </ul>
   </section>
 
   <section class="reveal">
-  <h2>8. Takeaways</h2>
+  <h2>10. Business impact</h2>
+  <p>A real-time lakehouse collapses the gap between an event happening and a decision being made:
+  fraud flags, inventory, and operational dashboards move from "yesterday's batch" to minutes-old.
+  It also removes duplicate storage and ETL copies (one governed copy serves BI, ML, and
+  streaming), and the open format avoids warehouse lock-in. The cost is a real maintenance
+  budget — teams that skip compaction trade a fast launch for a slow, expensive table six months
+  later.</p>
+  </section>
+
+  <section class="reveal">
+  <h2>References &amp; further reading</h2>
   <ul>
-    <li>Open table formats make the lake transactional and real-time.</li>
-    <li>MOR for streaming, COW for batch; compaction is the price of real-time.</li>
-    <li>The hard part is operations, not ingestion — budget for maintenance from day one.</li>
+    <li>Apache Iceberg spec (table format v2/v3); "Iceberg: A Modern Table Format" (Netflix).</li>
+    <li>Delta Lake protocol; deletion vectors &amp; liquid clustering.</li>
+    <li>Apache Hudi — record-level indexing &amp; MoR/CoW.</li>
+    <li>Companion projects: <a href="../projects/iceberg-streaming.html">Iceberg Streaming</a> ·
+    <a href="../projects/cdc-iceberg.html">CDC → Iceberg</a>.</li>
   </ul>
   </section>
 
   <div class="actions">
     <a class="btn primary" href="../../index.html#research">← All research</a>
-    <a class="btn" href="../projects/iceberg-streaming.html">Related project: Iceberg Streaming Lakehouse →</a>
+    <a class="btn" href="../projects/iceberg-streaming.html">Related project: Iceberg Streaming →</a>
   </div>
 </article>
 <script src="../assets/site.js"></script>

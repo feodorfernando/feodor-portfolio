@@ -1,6 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script>
+(function(){function a(t){document.documentElement.setAttribute('data-theme',t);}
+var s;try{s=localStorage.getItem('theme');}catch(e){}
+var m=window.matchMedia&&matchMedia('(prefers-color-scheme: light)').matches;
+a(s||(m?'light':'dark'));
+window.toggleTheme=function(){var c=document.documentElement.getAttribute('data-theme');var n=c==='light'?'dark':'light';a(n);try{localStorage.setItem('theme',n);}catch(e){}var b=document.getElementById('theme-toggle');if(b)b.textContent=n==='light'?'\u{1F319}':'\u2600\uFE0F';};
+document.addEventListener('DOMContentLoaded',function(){var b=document.getElementById('theme-toggle');if(b)b.textContent=document.documentElement.getAttribute('data-theme')==='light'?'\u{1F319}':'\u2600\uFE0F';});
+if(!s&&window.matchMedia){try{matchMedia('(prefers-color-scheme: light)').addEventListener('change',function(e){var n=e.matches?'light':'dark';a(n);var b=document.getElementById('theme-toggle');if(b)b.textContent=n==='light'?'\u{1F319}':'\u2600\uFE0F';});}catch(e){}}
+})();
+</script>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Real-Time CDC → Iceberg — Feodor Fernando</title>
@@ -13,6 +23,7 @@
 <div class="topbar"><div class="topbar-inner">
   <a class="back" href="../../index.html">← Portfolio</a>
   <span class="kind">Project · 04</span>
+  <button id="theme-toggle" class="theme-btn" onclick="toggleTheme()" aria-label="Toggle light/dark theme">☀️</button>
 </div></div>
 
 <article class="wrap">
