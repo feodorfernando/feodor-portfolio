@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+*.egg-info/
+
+# Project artifacts
+index/                 # generated embeddings index (project 02)
+embeddings.npy
+/tmp/
+*.log
+
+# Spark / Iceberg local warehouse & checkpoints
+iceberg-warehouse/
+iceberg-checkpoints/
+spark-warehouse/
+metastore_db/
+derby.log
+
+# Secrets
+.env
+*.key
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

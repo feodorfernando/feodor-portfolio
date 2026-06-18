@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Feodor Fernando — Data &amp; AI Engineer</title>
+  <meta name="description" content="Portfolio of Feodor Fernando — Data Engineer &amp; Cloud Wrangler. Projects in streaming lakehouses (Apache Iceberg), GenAI for data platforms, and AI-powered data quality." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="hero">
+    <nav class="nav">
+      <span class="brand">FF</span>
+      <div class="nav-links">
+        <a href="#projects">Projects</a>
+        <a href="#about">About</a>
+        <a href="https://www.linkedin.com/in/feodorfernando/" target="_blank" rel="noopener">LinkedIn</a>
+      </div>
+    </nav>
+
+    <div class="hero-inner">
+      <p class="eyebrow">Data Engineer · Cloud Wrangler · Chennai, India</p>
+      <h1>Feodor Fernando</h1>
+      <p class="tagline">
+        I turn messy, high-volume data into reliable, real-time lakehouses —
+        and wire generative AI into the data platform itself.
+      </p>
+      <div class="badges">
+        <span>Apache Iceberg</span>
+        <span>Spark Structured Streaming</span>
+        <span>Kafka / CDC</span>
+        <span>Databricks</span>
+        <span>Azure &amp; AWS</span>
+        <span>Claude / GenAI</span>
+        <span>Python</span>
+      </div>
+      <div class="cta">
+        <a class="btn primary" href="#projects">View projects</a>
+        <a class="btn" href="https://www.linkedin.com/in/feodorfernando/" target="_blank" rel="noopener">Connect on LinkedIn</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section id="projects" class="section">
+      <h2 class="section-title">Projects</h2>
+      <p class="section-sub">
+        Four hands-on projects at the intersection of <strong>data engineering</strong>,
+        <strong>streaming</strong>, and <strong>generative AI</strong>. Each ships
+        runnable code plus a written research / design note.
+      </p>
+
+      <div class="grid">
+        <!-- Project 1 -->
+        <article class="card">
+          <div class="card-icon">🧊</div>
+          <h3>Iceberg Streaming Lakehouse</h3>
+          <p>
+            Real-time Kafka → Apache Iceberg ingestion with merge-on-read upserts,
+            late-data correction, and the compaction/maintenance jobs that keep a
+            streaming table healthy. Includes a deep research note on Iceberg
+            metadata, copy-on-write vs merge-on-read, and the small-file problem.
+          </p>
+          <div class="tags">
+            <span>Iceberg</span><span>Spark Streaming</span><span>Kafka</span><span>Research note</span>
+          </div>
+          <div class="card-links">
+            <a href="projects/01-iceberg-streaming-lakehouse/README.md">README</a>
+            <a href="projects/01-iceberg-streaming-lakehouse/docs/iceberg-streaming-research.md">Research note →</a>
+          </div>
+        </article>
+
+        <!-- Project 2 -->
+        <article class="card">
+          <div class="card-icon">🤖</div>
+          <h3>GenAI Catalog Assistant (RAG)</h3>
+          <p>
+            A retrieval-augmented assistant that answers natural-language questions
+            about a lakehouse catalog — schemas, lineage, ownership, PII — grounded
+            in metadata with table citations. Local embeddings + the Claude API,
+            with guardrails against hallucinated tables.
+          </p>
+          <div class="tags">
+            <span>Claude API</span><span>RAG</span><span>Embeddings</span><span>Lineage</span>
+          </div>
+          <div class="card-links">
+            <a href="projects/02-genai-rag-lakehouse/README.md">README →</a>
+          </div>
+        </article>
+
+        <!-- Project 3 -->
+        <article class="card">
+          <div class="card-icon">🔎</div>
+          <h3>LLM-Powered Data Quality Agent</h3>
+          <p>
+            Profiles a dataset, asks Claude to propose typed validation rules via
+            tool-use, then enforces them deterministically in pandas. The LLM
+            handles judgement; enforcement stays auditable Python — so a
+            hallucinated rule can't pass bad data. CI-gate ready.
+          </p>
+          <div class="tags">
+            <span>Claude tool-use</span><span>pandas</span><span>Data quality</span><span>CI gate</span>
+          </div>
+          <div class="card-links">
+            <a href="projects/03-llm-data-quality/README.md">README →</a>
+          </div>
+        </article>
+
+        <!-- Project 4 -->
+        <article class="card">
+          <div class="card-icon">🔄</div>
+          <h3>Real-Time CDC → Iceberg</h3>
+          <p>
+            Mirror an operational database into Iceberg in near-real-time via
+            Debezium CDC — applying inserts, updates, and deletes with LSN-guarded,
+            idempotent MERGEs. Ships a design note on the hard parts: ordering,
+            deletes, exactly-once, and snapshot→stream handoff.
+          </p>
+          <div class="tags">
+            <span>Debezium CDC</span><span>Iceberg</span><span>Spark Streaming</span><span>Design note</span>
+          </div>
+          <div class="card-links">
+            <a href="projects/04-realtime-cdc-iceberg/README.md">README</a>
+            <a href="projects/04-realtime-cdc-iceberg/docs/cdc-design.md">Design note →</a>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="about" class="section about">
+      <h2 class="section-title">About</h2>
+      <p>
+        I'm a data engineer who likes the unglamorous parts: exactly-once
+        ingestion, schema evolution, compaction, and the metadata layer that
+        makes a lakehouse trustworthy. Lately I've been wiring generative AI
+        <em>into</em> the data platform — RAG over catalogs, LLM-assisted data
+        quality — rather than treating AI as a separate stack.
+      </p>
+      <ul class="creds">
+        <li>Microsoft Certified: Azure Data Engineer Associate</li>
+        <li>Databricks Certified Data Engineer Associate</li>
+        <li>AWS Certified Cloud Practitioner</li>
+        <li>Google Data Analytics</li>
+      </ul>
+      <p class="stack">
+        <strong>Stack:</strong> Apache Iceberg · Spark / Databricks · Kafka ·
+        Azure · AWS · Python · SQL · Power BI / Tableau · Claude API
+      </p>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>© <span id="year">2026</span> Feodor Fernando ·
+      <a href="https://www.linkedin.com/in/feodorfernando/" target="_blank" rel="noopener">LinkedIn</a>
+    </p>
+    <p class="muted">Built as a code-first portfolio. Source in this repository.</p>
+  </footer>
+
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>

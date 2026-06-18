@@ -1,0 +1,77 @@
+[
+  {
+    "table": "raw.events_bronze",
+    "layer": "bronze",
+    "owner": "data-platform",
+    "description": "Raw append-only landing of clickstream/transaction events from Kafka.",
+    "refresh": "streaming (30s micro-batch)",
+    "format": "iceberg",
+    "upstream": ["kafka.events"],
+    "columns": [
+      {"name": "event_id", "type": "string"},
+      {"name": "user_id", "type": "string", "pii": true},
+      {"name": "amount", "type": "double"},
+      {"name": "event_time", "type": "timestamp"}
+    ]
+  },
+  {
+    "table": "curated.events_silver",
+    "layer": "silver",
+    "owner": "data-platform",
+    "description": "Deduplicated, late-data-corrected events. Merge-on-read upserts.",
+    "refresh": "streaming (30s micro-batch)",
+    "format": "iceberg",
+    "upstream": ["raw.events_bronze"],
+    "columns": [
+      {"name": "event_id", "type": "string"},
+      {"name": "user_id", "type": "string", "pii": true},
+      {"name": "amount", "type": "double"},
+      {"name": "event_time", "type": "timestamp"}
+    ]
+  },
+  {
+    "table": "curated.revenue_daily",
+    "layer": "gold",
+    "owner": "analytics-eng",
+    "description": "Daily revenue aggregates by user segment for BI dashboards.",
+    "refresh": "batch (hourly)",
+    "format": "iceberg",
+    "upstream": ["curated.events_silver", "dim.users"],
+    "columns": [
+      {"name": "date", "type": "date"},
+      {"name": "segment", "type": "string"},
+      {"name": "revenue", "type": "decimal(18,2)"},
+      {"name": "txn_count", "type": "bigint"}
+    ]
+  },
+  {
+    "table": "dim.users",
+    "layer": "gold",
+    "owner": "analytics-eng",
+    "description": "Slowly-changing user dimension. Contains contact PII.",
+    "refresh": "batch (daily)",
+    "format": "iceberg",
+    "upstream": ["raw.crm_users"],
+    "columns": [
+      {"name": "user_id", "type": "string", "pii": true},
+      {"name": "email", "type": "string", "pii": true},
+      {"name": "country", "type": "string"},
+      {"name": "segment", "type": "string"}
+    ]
+  },
+  {
+    "table": "ml.churn_features",
+    "layer": "feature",
+    "owner": "ml-platform",
+    "description": "Feature table for the churn model: rolling activity + revenue windows.",
+    "refresh": "batch (daily)",
+    "format": "iceberg",
+    "upstream": ["curated.events_silver", "curated.revenue_daily"],
+    "columns": [
+      {"name": "user_id", "type": "string", "pii": true},
+      {"name": "events_7d", "type": "bigint"},
+      {"name": "revenue_30d", "type": "double"},
+      {"name": "days_since_last", "type": "int"}
+    ]
+  }
+]

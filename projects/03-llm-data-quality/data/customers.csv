@@ -1,0 +1,11 @@
+customer_id,email,country,age,signup_channel,lifetime_value
+C00001,alice@example.com,US,34,organic,1240.50
+C00002,bob@example.com,IN,28,paid,540.00
+C00003,carol@example.com,UK,41,referral,3120.75
+C00004,,US,-3,organic,80.00
+C00005,not-an-email,IN,29,paid,
+C00006,dave@example.com,XX,52,organic,990.10
+C00007,erin@example.com,UK,37,paid,1875.20
+C00001,frank@example.com,US,45,referral,2010.00
+C00009,grace@example.com,IN,199,unknown,410.30
+C00010,heidi@example.com,US,33,organic,720.00
