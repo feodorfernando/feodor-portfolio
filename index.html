@@ -90,8 +90,8 @@ if(!s&&window.matchMedia){try{matchMedia('(prefers-color-scheme: light)').addEve
     </div>
 
     <div class="stat-row fade-up d5">
-      <div><strong>6</strong><span>Projects</span></div>
-      <div><strong>5</strong><span>Research papers</span></div>
+      <div><strong>8</strong><span>Projects</span></div>
+      <div><strong>6</strong><span>Research papers</span></div>
       <div><strong>∞</strong><span>Rows wrangled</span></div>
     </div>
   </header>
@@ -100,8 +100,8 @@ if(!s&&window.matchMedia){try{matchMedia('(prefers-color-scheme: light)').addEve
     <!-- PROJECTS -->
     <section id="projects" class="section">
       <h2 class="section-title reveal">Projects</h2>
-      <p class="section-sub reveal">Six hands-on projects across streaming, Azure pipelines,
-        Databricks, and generative AI. Each has its own page — overview, design, stack &amp;
+      <p class="section-sub reveal">Eight hands-on projects across streaming, Azure pipelines,
+        Databricks platforms, and generative AI. Each has its own page — overview, design, stack &amp;
         details — and links to the code.</p>
 
       <div class="grid">
@@ -158,15 +158,33 @@ if(!s&&window.matchMedia){try{matchMedia('(prefers-color-scheme: light)').addEve
           <div class="tags"><span>Databricks</span><span>Delta</span><span>Genie / AI-BI</span></div>
           <span class="card-go">View project →</span>
         </a>
+
+        <a class="card reveal new" href="site/projects/genai-bi-copilot.html">
+          <div class="card-icon">💬</div>
+          <h3>GenAI BI Copilot <span class="pill">New</span></h3>
+          <p>Lets the BI team ask business questions in plain English → safe SQL + result +
+            narrative insight, grounded on the certified gold layer with read-only guardrails.</p>
+          <div class="tags"><span>Claude</span><span>NL-to-SQL</span><span>Databricks SQL</span></div>
+          <span class="card-go">View project →</span>
+        </a>
+
+        <a class="card reveal new" href="site/projects/nextgen-databricks-platform.html">
+          <div class="card-icon">🚀</div>
+          <h3>Next-Gen Databricks Platform <span class="pill">New</span></h3>
+          <p>Env-aware medallion (dev→dev_catalog, prod→prod_catalog), Key Vault, streaming +
+            batch, CI/CD, and dynamic OOM/skew/error handling that re-tunes &amp; retries at runtime.</p>
+          <div class="tags"><span>Databricks</span><span>DevOps</span><span>Key Vault</span><span>Resilience</span></div>
+          <span class="card-go">View project →</span>
+        </a>
       </div>
     </section>
 
     <!-- RESEARCH -->
     <section id="research" class="section">
       <h2 class="section-title reveal">Research papers</h2>
-      <p class="section-sub reveal">Written notes on pipelines &amp; AI integration, Databricks
-        Genie accuracy, database performance, and the real-time lakehouse — all readable in your
-        browser.</p>
+      <p class="section-sub reveal">Industry-grade write-ups on pipelines &amp; AI integration,
+        Databricks Genie accuracy, database performance, the real-time lakehouse, and next-gen
+        Databricks platform engineering — each with a full architecture, readable in your browser.</p>
 
       <div class="grid research-grid">
         <a class="paper reveal" href="site/research/ai-in-data-pipelines.html">
@@ -197,6 +215,12 @@ if(!s&&window.matchMedia){try{matchMedia('(prefers-color-scheme: light)').addEve
           <span class="paper-no">05</span>
           <h3>AI-Augmented Data Quality &amp; Observability</h3>
           <p>LLMs propose &amp; triage; deterministic code enforces.</p>
+          <span class="card-go">Read paper →</span>
+        </a>
+        <a class="paper reveal" href="site/research/nextgen-databricks-platform.html">
+          <span class="paper-no">06</span>
+          <h3>Next-Gen Databricks: Env-Aware Medallion, DevOps &amp; Resilient Spark</h3>
+          <p>Dynamic dev/prod routing, Key Vault, CI/CD, and runtime OOM/skew recovery.</p>
           <span class="card-go">Read paper →</span>
         </a>
       </div>

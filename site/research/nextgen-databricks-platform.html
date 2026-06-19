@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>
+(function(){function a(t){document.documentElement.setAttribute('data-theme',t);}
+var s;try{s=localStorage.getItem('theme');}catch(e){}
+var m=window.matchMedia&&matchMedia('(prefers-color-scheme: light)').matches;
+a(s||(m?'light':'dark'));
+window.toggleTheme=function(){var c=document.documentElement.getAttribute('data-theme');var n=c==='light'?'dark':'light';a(n);try{localStorage.setItem('theme',n);}catch(e){}var b=document.getElementById('theme-toggle');if(b)b.textContent=n==='light'?'\u{1F319}':'☀️';};
+document.addEventListener('DOMContentLoaded',function(){var b=document.getElementById('theme-toggle');if(b)b.textContent=document.documentElement.getAttribute('data-theme')==='light'?'\u{1F319}':'☀️';});
+if(!s&&window.matchMedia){try{matchMedia('(prefers-color-scheme: light)').addEventListener('change',function(e){var n=e.matches?'light':'dark';a(n);var b=document.getElementById('theme-toggle');if(b)b.textContent=n==='light'?'\u{1F319}':'☀️';});}catch(e){}}
+})();
+</script>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Next-Gen Databricks: Environment-Aware Medallion, DevOps &amp; Resilient Spark — Feodor Fernando</title>
+<meta name="description" content="A detailed implementation paper: how to build a Databricks platform that runs the same code across dev/test/prod with catalog routing, Key Vault secrets, streaming+batch ingestion, CI/CD, and dynamic OOM/skew/error handling." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body>
+<div class="topbar"><div class="topbar-inner">
+  <a class="back" href="../../index.html">← Portfolio</a>
+  <div class="topbar-right">
+    <span class="kind">Research Paper · 06</span>
+    <button id="theme-toggle" class="theme-btn" onclick="toggleTheme()" aria-label="Toggle light/dark theme">☀️</button>
+  </div>
+</div></div>
+
+<article class="wrap">
+  <p class="eyebrow">Databricks · DevOps · Resilience</p>
+  <h1>Next-Gen Databricks: Environment-Aware Medallion, DevOps &amp; Resilient Spark</h1>
+  <p class="lede">A detailed implementation paper on shipping Databricks the way mature teams do:
+  one codebase that runs across dev / test / prod, secrets in Key Vault, streaming and batch
+  ingestion through to gold, CI/CD via Asset Bundles, and Spark jobs engineered to survive OOM,
+  skew, and transient failures by adapting at runtime.</p>
+  <div class="meta">
+    <span>Feodor Fernando</span><span class="dot">•</span>
+    <span>Platform Engineering Research</span><span class="dot">•</span>
+    <span>~15 min read</span><span class="dot">•</span><span>Rev. 2026-06</span>
+  </div>
+
+  <div class="panel">
+    <h3>Abstract</h3>
+    <p>Most Databricks projects start as notebooks with hard-coded table names, secrets pasted into
+    cells, manual cluster clicks, and jobs that die the first time a partition is too big. This
+    paper describes the engineering that turns that into a platform: <strong>environment-aware
+    configuration</strong> so identical code routes dev→<code>dev_catalog</code> and
+    prod→<code>prod_catalog</code>; <strong>Azure Key Vault</strong>-backed secret scopes;
+    unified <strong>streaming + batch ingestion</strong> into a Delta medallion; <strong>clusters
+    and jobs as code</strong> promoted by <strong>CI/CD</strong> (Databricks Asset Bundles); and a
+    two-layer <strong>resilience strategy</strong> — prevent OOM/skew with AQE-first tuning, and
+    recover from what slips through by classifying the failure and re-tuning configuration at
+    runtime before retrying. The companion <a href="../projects/nextgen-databricks-platform.html">Next-Gen
+    Databricks Platform</a> project implements every section.</p>
+  </div>
+
+  <section class="reveal">
+  <h2>1. The problem with "notebook-grade" Databricks</h2>
+  <p>A demo notebook works once, in one workspace, run by one person. A platform must run the same
+  logic in three environments, by automation, with secrets it can't see, on data that is sometimes
+  ten times bigger than yesterday, at 2am with nobody watching. The gap between those two is the
+  subject of this paper. We attack it on five fronts: environment routing, secrets, ingestion,
+  delivery, and resilience.</p>
+  </section>
+
+  <section class="reveal">
+  <h2>2. Environment-aware configuration (the "dynamic" pattern)</h2>
+  <p>The goal: <strong>zero code edits between environments.</strong> A single resolver decides
+  where the code is running and returns a config object that every read/write goes through.</p>
+  <svg class="diagram" viewBox="0 0 880 250" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Environment resolution">
+    <defs><linearGradient id="f" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#38bdf8"/><stop offset="1" stop-color="#22d3a6"/></linearGradient></defs>
+    <rect x="20" y="40" width="250" height="150" rx="10" fill="#0e1626" stroke="#233048"/>
+    <text x="145" y="62" text-anchor="middle" class="node-title">resolve env (first match)</text>
+    <text x="145" y="86" text-anchor="middle" class="node-label">1 · job param `env` (CI/CD)</text>
+    <text x="145" y="108" text-anchor="middle" class="node-label">2 · ENVIRONMENT cluster var</text>
+    <text x="145" y="130" text-anchor="middle" class="node-label">3 · workspace URL → env map</text>
+    <text x="145" y="152" text-anchor="middle" class="node-label">4 · default → dev (safe)</text>
+    <line class="flow" x1="270" y1="115" x2="350" y2="115" stroke="url(#f)" stroke-width="3"/>
+    <g class="pulse"><rect x="350" y="90" width="170" height="50" rx="9" fill="#141b2c" stroke="#38bdf8"/></g>
+    <text x="435" y="113" text-anchor="middle" class="node-title">EnvConfig</text><text x="435" y="129" text-anchor="middle" class="node-label">catalog · storage · scope</text>
+    <line class="flow" x1="520" y1="100" x2="600" y2="70" stroke="url(#f)" stroke-width="2.5"/>
+    <line class="flow" x1="520" y1="130" x2="600" y2="165" stroke="url(#f)" stroke-width="2.5"/>
+    <rect x="600" y="48" width="260" height="44" rx="9" fill="#0e1626" stroke="#22d3a6"/><text x="730" y="75" text-anchor="middle" class="node-label">dev workspace → dev_catalog.*.*</text>
+    <rect x="600" y="145" width="260" height="44" rx="9" fill="#0e1626" stroke="#f59e0b"/><text x="730" y="172" text-anchor="middle" class="node-label">prod workspace → prod_catalog.*.*</text>
+  </svg>
+  <pre><code>cfg = get_config(spark, dbutils)              # dev / test / prod, auto-resolved
+silver = cfg.table(cfg.silver_schema, "events")
+#   dev  -> dev_catalog.silver.events
+#   prod -> prod_catalog.silver.events  (same code path)
+assert_safe_to_write(cfg)                     # prod writes need ALLOW_PROD_WRITES=true</code></pre>
+  <p>Two design choices make this robust. <strong>Safe default</strong>: if nothing identifies the
+  environment, it falls back to dev — a misconfigured run can never <em>accidentally</em> target
+  prod. <strong>Explicit prod gate</strong>: writing to prod requires both the prod workspace and
+  an opt-in flag that only the prod deployment sets, so an interactive notebook can't mutate prod
+  even if pointed at it.</p>
+  </section>
+
+  <section class="reveal">
+  <h2>3. Secrets: Azure Key Vault, never in code</h2>
+  <p>Each environment has a Databricks secret scope <em>backed by</em> an Azure Key Vault. Code
+  reads <code>dbutils.secrets.get(scope, key)</code>; the value resolves from Key Vault, governed
+  by the workspace managed identity and Key Vault RBAC. No credential ever appears in a notebook,
+  a repo, or Spark conf logs.</p>
+  <pre><code>databricks secrets create-scope kv-prod \
+  --scope-backend-type AZURE_KEYVAULT \
+  --resource-id <key-vault-resource-id> \
+  --dns-name https://feodor-prod-kv.vault.azure.net/</code></pre>
+  <p>For storage, the modern path is a Unity Catalog <strong>storage credential + external
+  location</strong> (no keys in Spark conf at all); a service-principal-from-Key-Vault path is
+  provided for workspaces not yet on UC external locations.</p>
+  </section>
+
+  <section class="reveal">
+  <h2>4. Ingestion: streaming and batch into one medallion</h2>
+  <table>
+    <thead><tr><th>Mode</th><th>Mechanism</th><th>Guarantees / anti-OOM</th></tr></thead>
+    <tbody>
+      <tr><td>Streaming</td><td>Auto Loader → bronze</td><td>checkpointed exactly-once; schema evolution; <code>maxBytesPerTrigger</code> bounds per-batch memory</td></tr>
+      <tr><td>Batch</td><td><code>COPY INTO</code> → bronze</td><td>idempotent (skips already-loaded files); exactly-once batch</td></tr>
+      <tr><td>Silver</td><td>MERGE upsert</td><td>latest-per-key; bad rows → dead-letter (not dropped)</td></tr>
+      <tr><td>Gold</td><td>aggregate + annotate</td><td>business-language COMMENTs for Genie/Copilot</td></tr>
+    </tbody>
+  </table>
+  <p>Both ingestion modes write to the env-routed bronze table; silver and gold are identical
+  regardless of how data arrived. <code>availableNow</code> triggers run streaming "batch-style"
+  for cost while keeping streaming's exactly-once checkpointing.</p>
+  </section>
+
+  <section class="reveal">
+  <h2>5. Handling OOM &amp; runtime errors — the two-layer strategy</h2>
+  <p>This is the heart of "resilient". Out-of-memory is the most common production Spark failure:
+  a skewed key, an oversized broadcast, or a partition too large for executor memory. We handle it
+  in two layers.</p>
+
+  <h3>Layer 1 — Prevention (AQE-first session tuning)</h3>
+  <ul>
+    <li><strong>Adaptive Query Execution</strong> on, with <strong>skew-join</strong> handling and
+    <strong>partition coalescing</strong> — Spark splits skewed partitions and right-sizes shuffle
+    output at runtime. The single biggest anti-OOM lever.</li>
+    <li><strong>Bounded input splits</strong> (<code>spark.sql.files.maxPartitionBytes</code>) so a
+    single task can't pull a giant file into memory.</li>
+    <li><strong>Conservative broadcast threshold</strong> so a large table isn't broadcast into an
+    executor/driver OOM.</li>
+    <li><strong>Spill over die</strong> — advisory partition sizing pushes Spark to spill rather
+    than fail.</li>
+  </ul>
+
+  <h3>Layer 2 — Recovery (classify → re-tune → retry)</h3>
+  <p>If a stage still fails, an <code>adaptive_run</code> decorator inspects the exception, decides
+  the failure class, changes the configuration accordingly, and retries — instead of dying.</p>
+  <svg class="diagram" viewBox="0 0 880 240" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Adaptive error recovery">
+    <defs><linearGradient id="f2" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#38bdf8"/><stop offset="1" stop-color="#22d3a6"/></linearGradient></defs>
+    <rect x="20" y="100" width="140" height="44" rx="9" fill="#141b2c" stroke="#38bdf8"/><text x="90" y="122" text-anchor="middle" class="node-title">run stage</text><text x="90" y="138" text-anchor="middle" class="node-label">write / merge</text>
+    <line class="flow" x1="160" y1="122" x2="230" y2="122" stroke="url(#f2)" stroke-width="3"/>
+    <rect x="230" y="100" width="150" height="44" rx="9" fill="#0e1626" stroke="#f59e0b"/><text x="305" y="122" text-anchor="middle" class="node-title">classify(error)</text><text x="305" y="138" text-anchor="middle" class="node-label">oom / skew / transient</text>
+    <line class="flow" x1="380" y1="110" x2="450" y2="55" stroke="url(#f2)" stroke-width="2.5"/>
+    <line class="flow" x1="380" y1="122" x2="450" y2="122" stroke="url(#f2)" stroke-width="2.5"/>
+    <line class="flow" x1="380" y1="134" x2="450" y2="190" stroke="url(#f2)" stroke-width="2.5"/>
+    <rect x="450" y="35" width="410" height="40" rx="8" fill="#141b2c" stroke="#233048"/><text x="655" y="60" text-anchor="middle" class="node-label">OOM → ↑shuffle partitions · ↓maxPartitionBytes · broadcast off</text>
+    <rect x="450" y="102" width="410" height="40" rx="8" fill="#141b2c" stroke="#233048"/><text x="655" y="127" text-anchor="middle" class="node-label">skew → strengthen AQE skew join · ↑partitions (or salt key)</text>
+    <rect x="450" y="170" width="410" height="40" rx="8" fill="#141b2c" stroke="#233048"/><text x="655" y="195" text-anchor="middle" class="node-label">transient → exponential backoff · unknown → raise</text>
+  </svg>
+  <pre><code>@adaptive_run(spark, max_attempts=3)
+def merge_silver():
+    ...                     # MERGE that might OOM on a skewed batch
+merge_silver()              # attempt 1 OOM → re-tune → attempt 2 succeeds</code></pre>
+  <p>Crucially, <strong>unknown</strong> failures are re-raised — we never mask a genuine bug as a
+  retryable error. For pathological single-key skew that AQE can't fix (one key = most of the
+  data), a <strong>salting</strong> helper spreads the hot key across tasks. And bad
+  <em>records</em> (vs infra failures) are quarantined to a <strong>dead-letter</strong> table, so
+  a few malformed rows never fail the whole job nor silently disappear.</p>
+  </section>
+
+  <section class="reveal">
+  <h2>6. Clusters as code</h2>
+  <p>No cluster is created by clicking. The Asset Bundle defines autoscaling job clusters with
+  <strong>Photon</strong> (faster, lower memory pressure), <strong>spot-with-fallback</strong>
+  workers (cost, with on-demand fallback on eviction), AQE on, and Unity Catalog single-user
+  security mode. Job-scoped clusters spin up per run and terminate after — no idle cost, no
+  drift.</p>
+  </section>
+
+  <section class="reveal">
+  <h2>7. DevOps: CI/CD via Databricks Asset Bundles</h2>
+  <p>One bundle definition, three targets. GitHub Actions promotes automatically:</p>
+  <pre><code>PR to main        → databricks bundle deploy -t dev
+push to main      → databricks bundle deploy -t test
+tagged release v* → databricks bundle deploy -t prod   (ALLOW_PROD_WRITES=true)</code></pre>
+  <ul>
+    <li><strong>Validate before deploy</strong> (<code>bundle validate</code>) catches config
+    errors in CI, not in prod.</li>
+    <li><strong>Promotion, not duplication</strong> — the exact artifacts tested in dev/test are
+    what deploy to prod; environment differences live only in the bundle's <code>targets</code>.</li>
+    <li><strong>Least privilege</strong> — prod credentials are CI secrets; the prod write gate is
+    the last line of defence.</li>
+  </ul>
+  </section>
+
+  <section class="reveal">
+  <h2>8. Governance &amp; lineage</h2>
+  <p>Unity Catalog provides the governance spine: three-level namespace
+  (<code>catalog.schema.table</code>) for env isolation, fine-grained grants, automatic column and
+  table lineage, and storage credentials for keyless data access. Because every environment is a
+  separate catalog, permissions and data are isolated by construction — a dev grant cannot read
+  prod data.</p>
+  </section>
+
+  <section class="reveal">
+  <h2>9. Business impact</h2>
+  <div class="panel">
+    <p>The platform pattern converts Databricks from "a place analysts run notebooks" into
+    "a governed product the org depends on". Concretely: <strong>safe, repeatable releases</strong>
+    (no manual prod edits), <strong>fewer 2am pages</strong> (jobs self-heal from OOM/skew instead
+    of failing), <strong>lower cost</strong> (spot + Photon + job-scoped autoscaling), and
+    <strong>auditability</strong> (every secret in Key Vault, every change through CI, lineage in
+    Unity Catalog). The gold layer it produces is the trustworthy foundation the
+    <a href="../projects/genai-bi-copilot.html">BI Copilot</a> and
+    <a href="../projects/databricks-lakehouse-genie.html">Genie</a> projects build on.</p>
+  </div>
+  </section>
+
+  <section class="reveal">
+  <h2>10. Implementation checklist</h2>
+  <div class="panel">
+  <ol>
+    <li>One env resolver; route every read/write through it; default to dev; gate prod writes.</li>
+    <li>Key Vault-backed secret scopes per env; prefer UC storage credentials.</li>
+    <li>Unify streaming (Auto Loader, bounded) + batch (COPY INTO, idempotent) into bronze.</li>
+    <li>MERGE silver with dead-lettering; annotate gold for AI-BI.</li>
+    <li>AQE-first session tuning (skew join, coalescing, bounded splits, broadcast cap).</li>
+    <li>Wrap fragile stages in classify→re-tune→retry; raise on unknown; salt extreme skew.</li>
+    <li>Clusters as code (Photon, spot-with-fallback, autoscale).</li>
+    <li>CI/CD via Asset Bundles: PR→dev, main→test, tag→prod; validate before deploy.</li>
+  </ol>
+  </div>
+  </section>
+
+  <section class="reveal">
+  <h2>References &amp; further reading</h2>
+  <ul>
+    <li>Databricks — Asset Bundles, Unity Catalog, secret scopes (Azure Key Vault backing), Auto Loader.</li>
+    <li>Spark — Adaptive Query Execution &amp; skew-join handling.</li>
+    <li>Azure — Key Vault, managed identities, ADLS gen2 access patterns.</li>
+    <li>Companion projects:
+      <a href="../projects/nextgen-databricks-platform.html">Next-Gen Databricks Platform</a> ·
+      <a href="../projects/genai-bi-copilot.html">GenAI BI Copilot</a>.</li>
+  </ul>
+  </section>
+
+  <div class="actions">
+    <a class="btn primary" href="../../index.html#research">← All research</a>
+    <a class="btn" href="../projects/nextgen-databricks-platform.html">Related project: Next-Gen Databricks Platform →</a>
+  </div>
+</article>
+<script src="../assets/site.js"></script>
+</body>
+</html>

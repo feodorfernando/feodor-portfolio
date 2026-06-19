@@ -1,0 +1,64 @@
+# Databricks Asset Bundle (DAB) — infra-as-code for the medallion job.
+# One definition, deployed to dev / test / prod targets. CI/CD runs:
+#   databricks bundle deploy -t dev   (on PR)
+#   databricks bundle deploy -t prod  (on tagged release)
+bundle:
+  name: nextgen-databricks-platform
+
+variables:
+  env:
+    description: logical environment, passed to every task as the `env` widget
+    default: dev
+
+# Reusable job-cluster spec: autoscaling + Photon + spot workers for cost.
+resources:
+  jobs:
+    medallion_pipeline:
+      name: "[${var.env}] medallion-pipeline"
+      job_clusters:
+        - job_cluster_key: medallion
+          new_cluster:
+            spark_version: 15.4.x-scala2.12
+            data_security_mode: SINGLE_USER          # Unity Catalog
+            runtime_engine: PHOTON                    # faster + less memory pressure
+            autoscale: { min_workers: 2, max_workers: 8 }
+            azure_attributes:
+              availability: SPOT_WITH_FALLBACK_AZURE  # spot for cost, fallback on eviction
+              first_on_demand: 1
+            spark_conf:
+              spark.sql.adaptive.enabled: "true"      # AQE on by default (anti-OOM/skew)
+              spark.sql.adaptive.skewJoin.enabled: "true"
+      tasks:
+        - task_key: ingest_streaming
+          job_cluster_key: medallion
+          notebook_task: { notebook_path: ../notebooks/00_ingest_streaming.py,
+                           base_parameters: { env: "${var.env}" } }
+        - task_key: ingest_batch
+          job_cluster_key: medallion
+          notebook_task: { notebook_path: ../notebooks/01_ingest_batch.py,
+                           base_parameters: { env: "${var.env}" } }
+        - task_key: silver
+          depends_on: [{ task_key: ingest_streaming }, { task_key: ingest_batch }]
+          job_cluster_key: medallion
+          max_retries: 2                              # retry transient infra failures
+          min_retry_interval_millis: 30000
+          notebook_task: { notebook_path: ../notebooks/02_silver_merge.py,
+                           base_parameters: { env: "${var.env}" } }
+        - task_key: gold
+          depends_on: [{ task_key: silver }]
+          job_cluster_key: medallion
+          notebook_task: { notebook_path: ../notebooks/03_gold.py,
+                           base_parameters: { env: "${var.env}" } }
+
+targets:
+  dev:
+    default: true
+    variables: { env: dev }
+    workspace: { host: https://adb-1111111111111111.11.azuredatabricks.net }
+  test:
+    variables: { env: test }
+    workspace: { host: https://adb-2222222222222222.22.azuredatabricks.net }
+  prod:
+    variables: { env: prod }
+    mode: production
+    workspace: { host: https://adb-3333333333333333.33.azuredatabricks.net }

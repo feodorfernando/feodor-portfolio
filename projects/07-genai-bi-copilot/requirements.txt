@@ -1,0 +1,3 @@
+anthropic>=0.40.0
+# optional, for live execution against a Databricks SQL warehouse:
+# databricks-sql-connector>=3.0.0

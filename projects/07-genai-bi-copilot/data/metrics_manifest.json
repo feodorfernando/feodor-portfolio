@@ -1,0 +1,38 @@
+{
+  "schema": "prod_catalog.gold",
+  "tables": [
+    {
+      "name": "revenue_daily",
+      "description": "Daily revenue and engagement by region. Certified source of truth.",
+      "grain": "one row per (date, region)",
+      "columns": [
+        {"name": "date", "type": "DATE", "comment": "calendar date of activity"},
+        {"name": "region", "type": "STRING", "comment": "sales region code"},
+        {"name": "revenue", "type": "DECIMAL(18,2)", "comment": "total gross revenue (USD)"},
+        {"name": "txn_count", "type": "BIGINT", "comment": "number of transactions"},
+        {"name": "active_users", "type": "BIGINT", "comment": "distinct transacting users"},
+        {"name": "avg_order_value", "type": "DOUBLE", "comment": "revenue / txn_count"}
+      ]
+    },
+    {
+      "name": "customer_segments",
+      "description": "Customer dimension with assigned value segment.",
+      "grain": "one row per customer",
+      "columns": [
+        {"name": "customer_id", "type": "STRING", "comment": "stable customer key"},
+        {"name": "region", "type": "STRING", "comment": "home region"},
+        {"name": "segment", "type": "STRING", "comment": "value tier: high / mid / low"}
+      ]
+    }
+  ],
+  "metrics": [
+    {"name": "revenue", "definition": "SUM(revenue_daily.revenue) — gross USD"},
+    {"name": "AOV", "definition": "SUM(revenue) / SUM(txn_count)"},
+    {"name": "active_users", "definition": "SUM(revenue_daily.active_users)"}
+  ],
+  "defaults": [
+    "currency is USD",
+    "'last week' = previous ISO week (Mon-Sun)",
+    "exclude rows where region = 'TEST'"
+  ]
+}

@@ -1,0 +1,41 @@
+name: deploy-databricks-bundle
+
+# Promotion flow: PR -> dev, push to main -> test, tagged release -> prod.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+    tags: ["v*"]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Databricks CLI
+        run: curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
+
+      - name: Pick target from the trigger
+        id: target
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then echo "t=prod" >> "$GITHUB_OUTPUT";
+          elif [[ "${GITHUB_REF}" == refs/heads/main ]]; then echo "t=test" >> "$GITHUB_OUTPUT";
+          else echo "t=dev" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Validate bundle
+        working-directory: config
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: databricks bundle validate -t ${{ steps.target.outputs.t }}
+
+      - name: Deploy bundle
+        working-directory: config
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          # prod writes are gated; only the prod deploy is allowed to set this
+          ALLOW_PROD_WRITES: ${{ steps.target.outputs.t == 'prod' && 'true' || 'false' }}
+        run: databricks bundle deploy -t ${{ steps.target.outputs.t }}
